@@ -87,7 +87,7 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 		}
 
 		// Convert all populated config options to their internal application values ex: scope string => scopeOpt source.Scope
-		err = processPostConfig(configuration)
+		err = postLoad(configuration)
 		if err != nil {
 			return err
 		}
@@ -256,13 +256,13 @@ func loadConfig(cfg Config, v *viper.Viper, appName string, configPath string) e
 	return nil
 }
 
-func processPostConfig(obj any) error {
+func postLoad(obj any) error {
 	value := reflect.ValueOf(obj)
 	typ := value.Type()
 	if typ.Kind() == reflect.Ptr {
-		if p, ok := obj.(PostProcess); ok {
+		if p, ok := obj.(PostLoad); ok {
 			// the field implements parser, call it
-			if err := p.PostProcess(); err != nil {
+			if err := p.PostLoad(); err != nil {
 				return err
 			}
 		}
@@ -289,7 +289,7 @@ func processPostConfig(obj any) error {
 		}
 		// note: since the interface method of parser is a pointer receiver we need to get the value of the field as a pointer.
 		// the field implements parser, call it
-		if err := processPostConfig(f.Addr().Interface()); err != nil {
+		if err := postLoad(f.Addr().Interface()); err != nil {
 			return err
 		}
 	}

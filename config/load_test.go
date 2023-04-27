@@ -261,14 +261,14 @@ func Test_xdgDir(t *testing.T) {
 	require.Equal(t, "xdg-config-v", r.V)
 }
 
-func Test_PostProcess(t *testing.T) {
+func Test_PostLoad(t *testing.T) {
 	cfg := NewConfig("my-app")
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
 
-	r := &rootPostProcess{
+	r := &rootPostLoad{
 		V: "default-v",
 	}
 
@@ -278,16 +278,31 @@ func Test_PostProcess(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "direct-config-v", r.V2)
+
+	require.Equal(t, "direct-config-sub-v", r.Sub.Sv2)
 }
 
-type rootPostProcess struct {
-	V  string `json:"v" yaml:"v" mapstructure:"v"`
-	V2 string
+type rootPostLoad struct {
+	V   string `json:"v" yaml:"v" mapstructure:"v"`
+	V2  string
+	Sub subPostLoad `json:"sub" yaml:"sub" mapstructure:"sub"`
 }
 
-func (r *rootPostProcess) PostProcess() error {
+func (r *rootPostLoad) PostLoad() error {
 	r.V2 = r.V
 	return nil
 }
 
-var _ PostProcess = (*rootPostProcess)(nil)
+var _ PostLoad = (*rootPostLoad)(nil)
+
+type subPostLoad struct {
+	Sv  string `json:"sv" yaml:"sv" mapstructure:"sv"`
+	Sv2 string
+}
+
+func (s *subPostLoad) PostLoad() error {
+	s.Sv2 = s.Sv
+	return nil
+}
+
+var _ PostLoad = (*subPostLoad)(nil)
