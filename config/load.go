@@ -13,6 +13,11 @@ import (
 )
 
 func Load(cfg Config, cmd *cobra.Command, configurations ...any) error {
+	// ensure the config is set up sufficiently
+	if cfg.Logger == nil || cfg.Finders == nil {
+		return fmt.Errorf("config.Load requires logger and finders to be set, but only has %+v", cfg)
+	}
+
 	// allow for nested options to be specified via environment variables
 	// e.g. pod.context = APPNAME_POD_CONTEXT
 	v := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
