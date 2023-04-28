@@ -3,14 +3,10 @@ package config
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path"
 	"reflect"
 	"regexp"
 	"strings"
 
-	"github.com/adrg/xdg"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -48,7 +44,7 @@ func upperFirst(p string) string {
 func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any) error {
 	for _, cfg := range configurations {
 		if reflect.TypeOf(cfg).Kind() != reflect.Ptr {
-			return fmt.Errorf("LoadConfig cfg parameter must be a pointer, got: %s -- %v", reflect.TypeOf(cfg).Name(), cfg)
+			return fmt.Errorf("config.Load configuration parameters must be a pointers, got: %s -- %v", reflect.TypeOf(cfg).Name(), cfg)
 		}
 	}
 
@@ -56,9 +52,8 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 	// flags have already been loaded into viper by command construction
 
 	// check if user specified config; otherwise read all possible paths
-	if err := loadConfig(cfg, v, cfg.AppName, cfg.ConfigFile); err != nil {
-		var notFound *viper.ConfigFileNotFoundError
-		if errors.As(err, &notFound) {
+	if err := loadConfig(cfg, v); err != nil {
+		if isNotFoundErr(err) {
 			cfg.Logger.Debug("no config file found, using defaults")
 		} else {
 			return fmt.Errorf("unable to load config: %w", err)
@@ -169,81 +164,26 @@ func getFlagRefs(cmd *cobra.Command) flagRefs {
 	return refs
 }
 
-// nolint:funlen
-func loadConfig(cfg Config, v *viper.Viper, appName string, configPath string) error {
-	var err error
-	// use explicitly the given user config
-	if configPath != "" {
-		v.SetConfigFile(configPath)
-		if err := v.ReadInConfig(); err != nil {
-			return fmt.Errorf("unable to read application config=%q : %w", configPath, err)
+func loadConfig(cfg Config, v *viper.Viper) error {
+	for _, finder := range cfg.Finders {
+		files := finder(cfg)
+		if files == nil {
+			continue
 		}
-		v.Set("config", v.ConfigFileUsed())
-		// don't fall through to other options if the config path was explicitly provided
-		return nil
-	}
-
-	// start searching for valid configs in order...
-	// 1. look for .<appname>.yaml (in the current directory)
-	confFilePath := "." + appName
-
-	// TODO: Remove this before v1.0.0
-	// See syft #1634
-	v.AddConfigPath(".")
-	v.SetConfigName(confFilePath)
-
-	// check if config.yaml exists in the current directory
-	// DEPRECATED: this will be removed in v1.0.0
-	if _, err := os.Stat("config.yaml"); err == nil {
-		cfg.Logger.Warn("DEPRECATED: ./config.yaml as a configuration file is deprecated and will be removed as an option in v1.0.0, please rename to .syft.yaml")
-	}
-
-	if _, err := os.Stat(confFilePath + ".yaml"); err == nil {
-		if err = v.ReadInConfig(); err == nil {
+		for _, file := range files {
+			v.SetConfigFile(file)
+			err := v.ReadInConfig()
+			if isNotFoundErr(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
 			v.Set("config", v.ConfigFileUsed())
 			return nil
-		} else if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-			return fmt.Errorf("unable to parse config=%q: %w", v.ConfigFileUsed(), err)
 		}
 	}
-
-	// 2. look for .<appname>/config.yaml (in the current directory)
-	v.AddConfigPath("." + appName)
-	v.SetConfigName("config")
-	if err = v.ReadInConfig(); err == nil {
-		v.Set("config", v.ConfigFileUsed())
-		return nil
-	} else if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-		return fmt.Errorf("unable to parse config=%q: %w", v.ConfigFileUsed(), err)
-	}
-
-	// 3. look for ~/.<appname>.yaml
-	home, err := homedir.Dir()
-	if err == nil {
-		v.AddConfigPath(home)
-		v.SetConfigName("." + appName)
-		if err = v.ReadInConfig(); err == nil {
-			v.Set("config", v.ConfigFileUsed())
-			return nil
-		} else if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-			return fmt.Errorf("unable to parse config=%q: %w", v.ConfigFileUsed(), err)
-		}
-	}
-
-	// 4. look for <appname>/config.yaml in xdg locations (starting with xdg home config dir, then moving upwards)
-	v.SetConfigName("config")
-	configPath = path.Join(xdg.ConfigHome, appName)
-	v.AddConfigPath(configPath)
-	for _, dir := range xdg.ConfigDirs {
-		v.AddConfigPath(path.Join(dir, appName))
-	}
-	if err = v.ReadInConfig(); err == nil {
-		v.Set("config", v.ConfigFileUsed())
-		return nil
-	} else if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-		return fmt.Errorf("unable to parse config=%q: %w", v.ConfigFileUsed(), err)
-	}
-	return nil
+	return &viper.ConfigFileNotFoundError{}
 }
 
 func postLoad(obj any) error {
@@ -285,4 +225,9 @@ func postLoad(obj any) error {
 	}
 
 	return nil
+}
+
+func isNotFoundErr(err error) bool {
+	var notFound *viper.ConfigFileNotFoundError
+	return err != nil && errors.As(err, &notFound)
 }

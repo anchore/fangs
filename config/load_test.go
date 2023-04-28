@@ -37,7 +37,7 @@ func Test_LoadFromConfigFile(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	err = Load(cfg, cmd, r)
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func Test_LoadFromEnvOverridingConfigFile(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	err = Load(cfg, cmd, r)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func Test_LoadSubStruct(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	err = LoadAt(cfg, cmd, "sub", s)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func Test_LoadSubStructEnv(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	err = LoadAt(cfg, cmd, "sub", s)
 	require.NoError(t, err)
@@ -128,7 +128,7 @@ func Test_LoadFromFlagsOverridingAll(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	err = cmd.PersistentFlags().Set("v", "flag-value-v")
 	require.NoError(t, err)
@@ -214,6 +214,29 @@ func Test_AllFieldTypes(t *testing.T) {
 	assert.Equal(t, []string{"stringArrayValueFlag"}, a.StringArray)
 }
 
+func Test_wdConfigYaml(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	err = os.Chdir(path.Join(wd, "test-fixtures", "wd-config"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+
+	t.Setenv("HOME", path.Join(wd, "test-fixtures", "fake-home-dir"))
+
+	cmd, cfg, r, _ := setup(t)
+
+	cfg.Finders = append(cfg.Finders, FindInCwdConfigYaml)
+
+	err = Load(cfg, cmd, r)
+	require.NoError(t, err)
+
+	require.Equal(t, "wd-config-v", r.V)
+
+}
+
 func Test_homeDir(t *testing.T) {
 	disableCache := homedir.DisableCache
 	homedir.DisableCache = true
@@ -234,7 +257,7 @@ func Test_homeDir(t *testing.T) {
 	require.Equal(t, "home-config-v", r.V)
 }
 
-func Test_xdgDir(t *testing.T) {
+func Test_xdgDirs(t *testing.T) {
 	t.Cleanup(func() {
 		xdg.Reload()
 	})
@@ -249,7 +272,8 @@ func Test_xdgDir(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Setenv("HOME", path.Join(wd, "test-fixtures", "fake-home-dir"))
-	t.Setenv("XDG_CONFIG_HOME", path.Join(wd, "test-fixtures", "xdg-dir"))
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("XDG_CONFIG_DIRS", path.Join(wd, "test-fixtures", "xdg-dir"))
 
 	xdg.Reload()
 
@@ -261,12 +285,40 @@ func Test_xdgDir(t *testing.T) {
 	require.Equal(t, "xdg-config-v", r.V)
 }
 
+func Test_xdgHomeDir(t *testing.T) {
+	t.Cleanup(func() {
+		xdg.Reload()
+	})
+
+	disableCache := homedir.DisableCache
+	homedir.DisableCache = true
+	t.Cleanup(func() {
+		homedir.DisableCache = disableCache
+	})
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	t.Setenv("HOME", path.Join(wd, "test-fixtures", "fake-home-dir"))
+	t.Setenv("XDG_CONFIG_HOME", path.Join(wd, "test-fixtures", "xdg-home"))
+	t.Setenv("XDG_CONFIG_DIRS", path.Join(wd, "test-fixtures", "xdg-dir"))
+
+	xdg.Reload()
+
+	cmd, cfg, r, _ := setup(t)
+
+	err = Load(cfg, cmd, r)
+	require.NoError(t, err)
+
+	require.Equal(t, "xdg-home-config-v", r.V)
+}
+
 func Test_PostLoad(t *testing.T) {
 	cfg := NewConfig("my-app")
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.ConfigFile = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
 
 	r := &rootPostLoad{
 		V: "default-v",
