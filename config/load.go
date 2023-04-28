@@ -101,7 +101,10 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 	if value.Type().Kind() == reflect.Ptr && value.Type().Elem().Kind() != reflect.Struct {
 		if flag, ok := flags[value.Pointer()]; ok {
 			cfg.Logger.Tracef("binding: %s = %v (flag)\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Elem().Interface())
-			_ = v.BindPFlag(path, flag)
+			err := v.BindPFlag(path, flag)
+			if err != nil {
+				cfg.Logger.Tracef("unable to bind flag: %s to %+v", path, flag)
+			}
 			return
 		}
 	}
