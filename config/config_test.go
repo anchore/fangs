@@ -13,7 +13,7 @@ func Test_Config(t *testing.T) {
 	cmd := cobra.Command{}
 	c.AddFlags(cmd.Flags())
 
-	require.NotNil(t, c.Log)
+	require.NotNil(t, c.Logger)
 	require.Equal(t, "appName", c.AppName)
 
 	var flags []string

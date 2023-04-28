@@ -59,7 +59,7 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 	if err := loadConfig(cfg, v, cfg.AppName, cfg.ConfigFile); err != nil {
 		var notFound *viper.ConfigFileNotFoundError
 		if errors.As(err, &notFound) {
-			cfg.Log.Debug("no config file found, using defaults")
+			cfg.Logger.Debug("no config file found, using defaults")
 		} else {
 			return fmt.Errorf("unable to load config: %w", err)
 		}
@@ -100,7 +100,7 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, appPrefix string, path string) {
 	if value.Type().Kind() == reflect.Ptr && value.Type().Elem().Kind() != reflect.Struct {
 		if flag, ok := flags[value.Pointer()]; ok {
-			cfg.Log.Trace(fmt.Sprintf("binding: %s = %v (flag)\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Elem().Interface()))
+			cfg.Logger.Tracef("binding: %s = %v (flag)\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Elem().Interface())
 			_ = v.BindPFlag(path, flag)
 			return
 		}
@@ -111,7 +111,7 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 	}
 
 	if value.Type().Kind() != reflect.Struct {
-		cfg.Log.Trace(fmt.Sprintf("binding: %s = %v\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Interface()))
+		cfg.Logger.Tracef("binding: %s = %v\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Interface())
 		v.SetDefault(path, value.Interface())
 		return
 	}
@@ -132,7 +132,7 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 		}
 
 		if !field.Anonymous && mapStructTag == "" {
-			cfg.Log.Trace(fmt.Sprintf("not binding field due to lacking mapstructure tag: %s.%s", value.Type().Name(), field.Name))
+			cfg.Logger.Tracef("not binding field due to lacking mapstructure tag: %s.%s", value.Type().Name(), field.Name)
 			continue
 		}
 
@@ -169,16 +169,6 @@ func getFlagRefs(cmd *cobra.Command) flagRefs {
 	return refs
 }
 
-//nolint:unused
-func hasConfig(base string) bool {
-	for _, ext := range viper.SupportedExts {
-		if _, err := os.Stat(fmt.Sprintf("%s.%s", base, ext)); err != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // nolint:funlen
 func loadConfig(cfg Config, v *viper.Viper, appName string, configPath string) error {
 	var err error
@@ -205,7 +195,7 @@ func loadConfig(cfg Config, v *viper.Viper, appName string, configPath string) e
 	// check if config.yaml exists in the current directory
 	// DEPRECATED: this will be removed in v1.0.0
 	if _, err := os.Stat("config.yaml"); err == nil {
-		cfg.Log.Warn("DEPRECATED: ./config.yaml as a configuration file is deprecated and will be removed as an option in v1.0.0, please rename to .syft.yaml")
+		cfg.Logger.Warn("DEPRECATED: ./config.yaml as a configuration file is deprecated and will be removed as an option in v1.0.0, please rename to .syft.yaml")
 	}
 
 	if _, err := os.Stat(confFilePath + ".yaml"); err == nil {

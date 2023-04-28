@@ -3,18 +3,19 @@ package config
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/anchore/fangs/config/log"
+	"github.com/anchore/go-logger"
+	"github.com/anchore/go-logger/adapter/discard"
 )
 
 type Config struct {
-	Log        log.Log
+	Logger     logger.Logger
 	AppName    string `json:"-" yaml:"-" mapstructure:"-"`
 	ConfigFile string `json:"config,omitempty" yaml:"config,omitempty" mapstructure:"-"`
 }
 
 func NewConfig(appName string) Config {
 	return Config{
-		Log:     log.NewDiscard(),
+		Logger:  discard.New(),
 		AppName: appName,
 	}
 }
