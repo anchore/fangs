@@ -154,23 +154,28 @@ func getFlagRefs(cmd *cobra.Command) flagRefs {
 	refs := flagRefs{}
 	for _, flags := range []*pflag.FlagSet{cmd.PersistentFlags(), cmd.Flags()} {
 		flags.VisitAll(func(flag *pflag.Flag) {
-			v := reflect.ValueOf(flag.Value)
-			// check for struct types like stringArrayValue
-			if v.Type().Kind() == reflect.Ptr {
-				vf := v.Elem()
-				if vf.Type().Kind() == reflect.Struct {
-					if _, ok := vf.Type().FieldByName("value"); ok {
-						vf = vf.FieldByName("value")
-						if vf.IsValid() {
-							v = vf
-						}
-					}
-				}
-			}
-			refs[v.Pointer()] = flag
+			refs[getFlagRef(flag)] = flag
 		})
 	}
 	return refs
+}
+
+func getFlagRef(flag *pflag.Flag) uintptr {
+	v := reflect.ValueOf(flag.Value)
+
+	// check for struct types like stringArrayValue
+	if v.Type().Kind() == reflect.Ptr {
+		vf := v.Elem()
+		if vf.Type().Kind() == reflect.Struct {
+			if _, ok := vf.Type().FieldByName("value"); ok {
+				vf = vf.FieldByName("value")
+				if vf.IsValid() {
+					v = vf
+				}
+			}
+		}
+	}
+	return v.Pointer()
 }
 
 func loadConfig(cfg Config, v *viper.Viper) error {
