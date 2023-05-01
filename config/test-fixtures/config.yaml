@@ -1,0 +1,8 @@
+v: direct-config-v
+sub:
+  sv: direct-config-sub-v
+  sub2:
+    ssv: direct-config-sub-sub-v
+    sub3:
+      sssv: direct-config-sub-sub-sub-v
+      intv: 8
