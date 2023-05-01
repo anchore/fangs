@@ -13,16 +13,7 @@ import (
 )
 
 func Load(cfg Config, cmd *cobra.Command, configurations ...any) error {
-	// ensure the config is set up sufficiently
-	if cfg.Logger == nil || cfg.Finders == nil {
-		return fmt.Errorf("config.Load requires logger and finders to be set, but only has %+v", cfg)
-	}
-
-	// allow for nested options to be specified via environment variables
-	// e.g. pod.context = APPNAME_POD_CONTEXT
-	v := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
-
-	return load(cfg, v, cmd, configurations...)
+	return LoadConfig(cfg, commandFlagRefs(cmd), configurations...)
 }
 
 func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) error {
@@ -39,17 +30,23 @@ func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) erro
 	return Load(cfg, cmd, value.Interface())
 }
 
-func upperFirst(p string) string {
-	if len(p) < 2 {
-		return strings.ToUpper(p)
+func LoadConfig(cfg Config, flags flagRefs, configurations ...any) error {
+	// ensure the config is set up sufficiently
+	if cfg.Logger == nil || cfg.Finders == nil {
+		return fmt.Errorf("config.Load requires logger and finders to be set, but only has %+v", cfg)
 	}
-	return strings.ToUpper(p[0:1]) + p[1:]
+
+	// allow for nested options to be specified via environment variables
+	// e.g. pod.context = APPNAME_POD_CONTEXT
+	v := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
+
+	return load(cfg, v, flags, configurations...)
 }
 
-func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any) error {
-	for _, cfg := range configurations {
-		if reflect.TypeOf(cfg).Kind() != reflect.Ptr {
-			return fmt.Errorf("config.Load configuration parameters must be a pointers, got: %s -- %v", reflect.TypeOf(cfg).Name(), cfg)
+func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) error {
+	for _, configuration := range configurations {
+		if !isPtr(reflect.TypeOf(configuration)) {
+			return fmt.Errorf("config.Load configuration parameters must be a pointers, got: %s -- %v", reflect.TypeOf(configuration).Name(), configuration)
 		}
 	}
 
@@ -75,8 +72,6 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 		appPrefix += "."
 	}
 
-	flags := getFlagRefs(cmd)
-
 	for _, configuration := range configurations {
 		configureViper(cfg, v, reflect.ValueOf(configuration), flags, appPrefix, "")
 
@@ -96,27 +91,41 @@ func load(cfg Config, v *viper.Viper, cmd *cobra.Command, configurations ...any)
 	return nil
 }
 
-// configureViper loads the default configuration values into the viper instance, before the config values are read and parsed
+// configureViper loads the default configuration values into the viper instance,
+// before the config values are read and parsed. the value _must_ be a pointer but
+// may be a pointer to a pointer
 func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, appPrefix string, path string) {
-	if value.Type().Kind() == reflect.Ptr && value.Type().Elem().Kind() != reflect.Struct {
-		if flag, ok := flags[value.Pointer()]; ok {
-			envVar := strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_"))
-			cfg.Logger.Tracef("binding: %s = %v (flag)\n", envVar, value.Elem().Interface())
-			err := v.BindPFlag(path, flag)
-			if err != nil {
-				cfg.Logger.Tracef("unable to bind flag: %s to %+v", path, flag)
-			}
-			return
-		}
+	typ := value.Type()
+	if !isPtr(typ) {
+		panic(fmt.Sprintf("configureViper value must be a pointer, got: %+v", value))
 	}
 
-	if value.Type().Kind() == reflect.Ptr {
+	// value is always a pointer, addr within a struct
+	ptr := value.Pointer()
+	value = value.Elem()
+	typ = value.Type()
+
+	// might be a pointer value
+	if isPtr(typ) {
+		typ = typ.Elem()
 		value = value.Elem()
 	}
 
-	if value.Type().Kind() != reflect.Struct {
-		cfg.Logger.Tracef("binding: %s = %v\n", strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_")), value.Interface())
-		v.SetDefault(path, value.Interface())
+	if !isStruct(typ) {
+		envVar := strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_"))
+
+		if flag, ok := flags[ptr]; ok {
+			cfg.Logger.Tracef("binding env var w/flag: %s", envVar)
+			err := v.BindPFlag(path, flag)
+			if err != nil {
+				cfg.Logger.Debugf("unable to bind flag: %s to %+v", path, flag)
+			}
+			return
+		}
+
+		cfg.Logger.Tracef("binding env var: %s", envVar)
+
+		v.SetDefault(path, nil) // no default value actually needs to be set for Viper to read config values
 		return
 	}
 
@@ -127,7 +136,7 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
 	for i := 0; i < value.NumField(); i++ {
 		fieldValue := value.Field(i)
-		field := value.Type().Field(i)
+		field := typ.Field(i)
 
 		mapStructTag := field.Tag.Get("mapstructure")
 
@@ -140,42 +149,8 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 			continue
 		}
 
-		if fieldValue.Type().Kind() != reflect.Ptr {
-			fieldValue = fieldValue.Addr()
-		}
-
-		configureViper(cfg, v, fieldValue, flags, appPrefix, path+mapStructTag)
+		configureViper(cfg, v, fieldValue.Addr(), flags, appPrefix, path+mapStructTag)
 	}
-}
-
-type flagRefs map[uintptr]*pflag.Flag
-
-func getFlagRefs(cmd *cobra.Command) flagRefs {
-	refs := flagRefs{}
-	for _, flags := range []*pflag.FlagSet{cmd.PersistentFlags(), cmd.Flags()} {
-		flags.VisitAll(func(flag *pflag.Flag) {
-			refs[getFlagRef(flag)] = flag
-		})
-	}
-	return refs
-}
-
-func getFlagRef(flag *pflag.Flag) uintptr {
-	v := reflect.ValueOf(flag.Value)
-
-	// check for struct types like stringArrayValue
-	if v.Type().Kind() == reflect.Ptr {
-		vf := v.Elem()
-		if vf.Type().Kind() == reflect.Struct {
-			if _, ok := vf.Type().FieldByName("value"); ok {
-				vf = vf.FieldByName("value")
-				if vf.IsValid() {
-					v = vf
-				}
-			}
-		}
-	}
-	return v.Pointer()
 }
 
 func loadConfig(cfg Config, v *viper.Viper) error {
@@ -203,7 +178,7 @@ func loadConfig(cfg Config, v *viper.Viper) error {
 func postLoad(obj any) error {
 	value := reflect.ValueOf(obj)
 	typ := value.Type()
-	if typ.Kind() == reflect.Ptr {
+	if isPtr(typ) {
 		if p, ok := obj.(PostLoad); ok {
 			// the field implements parser, call it
 			if err := p.PostLoad(); err != nil {
@@ -214,7 +189,7 @@ func postLoad(obj any) error {
 		typ = value.Type()
 	}
 
-	if typ.Kind() != reflect.Struct {
+	if !isStruct(typ) {
 		return nil
 	}
 
@@ -224,11 +199,11 @@ func postLoad(obj any) error {
 	for i := 0; i < value.NumField(); i++ {
 		f := value.Field(i)
 		ft := f.Type()
-		if ft.Kind() == reflect.Ptr {
+		if isPtr(ft) {
 			f = f.Elem()
 			ft = f.Type()
 		}
-		if !f.CanAddr() || ft.Kind() != reflect.Struct {
+		if !f.CanAddr() || !isStruct(ft) {
 			continue
 		}
 		// note: since the interface method of parser is a pointer receiver we need to get the value of the field as a pointer.
@@ -239,6 +214,56 @@ func postLoad(obj any) error {
 	}
 
 	return nil
+}
+
+type flagRefs map[uintptr]*pflag.Flag
+
+func commandFlagRefs(cmd *cobra.Command) flagRefs {
+	return getFlagRefs(cmd.PersistentFlags(), cmd.Flags())
+}
+
+func getFlagRefs(flagSets ...*pflag.FlagSet) flagRefs {
+	refs := flagRefs{}
+	for _, flags := range flagSets {
+		flags.VisitAll(func(flag *pflag.Flag) {
+			refs[getFlagRef(flag)] = flag
+		})
+	}
+	return refs
+}
+
+func getFlagRef(flag *pflag.Flag) uintptr {
+	v := reflect.ValueOf(flag.Value)
+
+	// check for struct types like stringArrayValue
+	if isPtr(v.Type()) {
+		vf := v.Elem()
+		vt := vf.Type()
+		if isStruct(vt) {
+			if _, ok := vt.FieldByName("value"); ok {
+				vf = vf.FieldByName("value")
+				if vf.IsValid() {
+					v = vf
+				}
+			}
+		}
+	}
+	return v.Pointer()
+}
+
+func upperFirst(p string) string {
+	if len(p) < 2 {
+		return strings.ToUpper(p)
+	}
+	return strings.ToUpper(p[0:1]) + p[1:]
+}
+
+func isPtr(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Ptr
+}
+
+func isStruct(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Struct
 }
 
 func isNotFoundErr(err error) bool {

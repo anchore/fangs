@@ -1,0 +1,7 @@
+bool: false
+bool-ptr: true
+int: 2
+int-ptr: 3
+string: stringValueConfig
+string-ptr: stringValuePtrConfig
+string-array: stringArrayValueConfig

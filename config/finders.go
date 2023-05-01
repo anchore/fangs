@@ -28,12 +28,9 @@ func FindDirect(cfg Config) []string {
 	return nil
 }
 
-// FindInCwdConfigYaml loads ./config.yaml
-// NOTE: THIS IS WAS A BUG IN SYFT/et. al. and is DEPRECATED and SHOULD NOT BE USED
-// it is just here for temporary compatibility -- See syft #1634
-func FindInCwdConfigYaml(cfg Config) []string {
+// FindConfigYamlInCwd loads ./config.yaml -- NOTE: this is not part of the default behavior
+func FindConfigYamlInCwd(cfg Config) []string {
 	// check if config.yaml exists in the current directory
-	// DEPRECATED: this will be removed in v1.0.0
 	f := "./config.yaml"
 	if fileExists(f) {
 		cfg.Logger.Warnf("DEPRECATED: %s as a configuration file is deprecated and will be removed as an option in v1.0.0, please rename to .syft.yaml", f)
