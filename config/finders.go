@@ -28,7 +28,7 @@ func FindDirect(cfg Config) []string {
 	return nil
 }
 
-// FindConfigYamlInCwd loads ./config.yaml -- NOTE: this is not part of the default behavior
+// FindConfigYamlInCwd looks for ./config.yaml -- NOTE: this is not part of the default behavior
 func FindConfigYamlInCwd(cfg Config) []string {
 	// check if config.yaml exists in the current directory
 	f := "./config.yaml"
@@ -40,11 +40,17 @@ func FindConfigYamlInCwd(cfg Config) []string {
 	return nil
 }
 
+// FindInCwd looks for ./.<appname>.<ext>
 func FindInCwd(cfg Config) []string {
 	return findConfigFiles(".", "."+cfg.AppName)
 }
 
-// FindInHomeDir loads from
+// FindInAppNameSubdir looks for ./.<appname>/config.<ext>
+func FindInAppNameSubdir(cfg Config) []string {
+	return findConfigFiles("."+cfg.AppName, "config")
+}
+
+// FindInHomeDir looks for ~/.<appname>.<ext>
 func FindInHomeDir(cfg Config) []string {
 	home, err := homedir.Dir()
 	if err != nil {

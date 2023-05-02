@@ -22,11 +22,13 @@ func NewConfig(appName string) Config {
 		Finders: []Finder{
 			// 1. look for a directly configured file
 			FindDirect,
-			// 2. look for ./.<appname>.yaml
+			// 2. look for ./.<appname>.<ext>
 			FindInCwd,
-			// 3. look for ~/.<appname>.yaml
+			// 3. look for ./.<appname>/config.<ext>
+			FindInAppNameSubdir,
+			// 4. look for ~/.<appname>.<ext>
 			FindInHomeDir,
-			// 4. look for <appname>/config.yaml in xdg locations
+			// 5. look for <appname>/config.<ext> in xdg locations
 			FindInXDG,
 		},
 	}
