@@ -376,6 +376,26 @@ func Test_wdConfigYaml(t *testing.T) {
 	require.Equal(t, "wd-config-v", r.V)
 }
 
+func Test_wdSubdirConfigYaml(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
+	err = os.Chdir(path.Join(wd, "test-fixtures", "wd-subdir"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+
+	t.Setenv("HOME", path.Join(wd, "test-fixtures", "fake-home-dir"))
+
+	cmd, cfg, r, _ := setup(t)
+
+	err = Load(cfg, cmd, r)
+	require.NoError(t, err)
+
+	require.Equal(t, "wd-subdir-config-v", r.V)
+}
+
 func Test_homeDir(t *testing.T) {
 	disableCache := homedir.DisableCache
 	homedir.DisableCache = true
