@@ -129,8 +129,10 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 		return
 	}
 
-	if path != "" {
-		path += "."
+	prefix := path
+
+	if prefix != "" {
+		prefix += "."
 	}
 
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
@@ -138,18 +140,24 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 		fieldValue := value.Field(i)
 		field := typ.Field(i)
 
-		mapStructTag := field.Tag.Get("mapstructure")
+		name := field.Name
 
-		if mapStructTag == "-" {
-			continue
+		if tag, ok := field.Tag.Lookup("mapstructure"); ok {
+			// handle ,squash mapstructure tags
+			tag = strings.Split(tag, ",")[0]
+			if tag == "-" {
+				continue
+			}
+			if tag == "" {
+				name = path
+			} else {
+				name = prefix + tag
+			}
+		} else {
+			name = prefix + name
 		}
 
-		if !field.Anonymous && mapStructTag == "" {
-			cfg.Logger.Tracef("not binding field due to lacking mapstructure tag: %s.%s", value.Type().Name(), field.Name)
-			continue
-		}
-
-		configureViper(cfg, v, fieldValue.Addr(), flags, appPrefix, path+mapStructTag)
+		configureViper(cfg, v, fieldValue.Addr(), flags, appPrefix, name)
 	}
 }
 

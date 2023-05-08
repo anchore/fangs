@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,6 +45,36 @@ func Test_LoadFromConfigFile(t *testing.T) {
 
 	require.Equal(t, "direct-config-sub-v", s.Sv)
 	require.Equal(t, "direct-config-v", r.V)
+}
+
+func Test_LoadEmbeddedSquash(t *testing.T) {
+	type Top struct {
+		Value string
+	}
+	type Sub struct {
+		Value string
+	}
+	type t1 struct {
+		Top `mapstructure:",squash"`
+		Sub `mapstructure:"sub"`
+	}
+
+	cfg := NewConfig("app")
+	cmd := &cobra.Command{}
+
+	v := &t1{
+		Top: Top{},
+		Sub: Sub{},
+	}
+
+	t.Setenv("APP_VALUE", "top-v")
+	t.Setenv("APP_SUB_VALUE", "sub-v")
+
+	err := Load(cfg, cmd, v)
+	require.NoError(t, err)
+
+	require.Equal(t, "top-v", v.Top.Value)
+	require.Equal(t, "sub-v", v.Sub.Value)
 }
 
 func Test_LoadFromEnv(t *testing.T) {
