@@ -1,4 +1,4 @@
-package config
+package fangs
 
 import (
 	"github.com/spf13/pflag"
