@@ -1,6 +1,7 @@
 package fangs
 
 import (
+	"os"
 	"regexp"
 	"strings"
 )
@@ -41,4 +42,9 @@ func envVar(appName string, parts []string) string {
 	}
 	v = envVarRegex.ReplaceAllString(v, "_")
 	return strings.ToUpper(v)
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
 }

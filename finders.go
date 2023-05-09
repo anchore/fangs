@@ -2,7 +2,6 @@ package fangs
 
 import (
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/adrg/xdg"
@@ -22,22 +21,12 @@ func FindDirect(cfg Config) []string {
 		cfg.Logger.Debugf("unable to expand path: %s", cfg.File)
 		file = cfg.File
 	}
-	if fileExists(file) {
-		return []string{file}
-	}
-	return nil
+	return []string{file}
 }
 
 // FindConfigYamlInCwd looks for ./config.yaml -- NOTE: this is not part of the default behavior
-func FindConfigYamlInCwd(cfg Config) []string {
-	// check if config.yaml exists in the current directory
-	f := "./config.yaml"
-	if fileExists(f) {
-		cfg.Logger.Warnf("DEPRECATED: %s as a configuration file is deprecated and will be removed as an option in v1.0.0, please rename to .syft.yaml", f)
-		return []string{f}
-	}
-
-	return nil
+func FindConfigYamlInCwd(_ Config) []string {
+	return []string{"./config.yaml"}
 }
 
 // FindInCwd looks for ./.<appname>.<ext>
@@ -72,17 +61,10 @@ func FindInXDG(cfg Config) (out []string) {
 	return
 }
 
-func fileExists(name string) bool {
-	_, err := os.Stat(name)
-	return err == nil
-}
-
 func findConfigFiles(dir string, base string) (out []string) {
 	for _, ext := range viper.SupportedExts {
 		name := path.Join(dir, fmt.Sprintf("%s.%s", base, ext))
-		if fileExists(name) {
-			out = append(out, name)
-		}
+		out = append(out, name)
 	}
 	return
 }

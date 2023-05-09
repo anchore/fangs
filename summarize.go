@@ -14,19 +14,15 @@ type Describer interface {
 	Describe(value reflect.Value, field reflect.StructField) string
 }
 
-type FinderDescriber func(cfg Config, finder Finder) []string
-
 func Summarize(cfg Config, value interface{}, describers ...Describer) string {
 	describers = append(describers, &structFieldDescriber{})
 	out := summarize(cfg, reflect.ValueOf(value), nil, describers, "")
 	return strings.TrimSpace(out)
 }
 
-func SummarizeLocations(cfg Config, describers ...FinderDescriber) (out []string) {
+func SummarizeLocations(cfg Config) (out []string) {
 	for _, f := range cfg.Finders {
-		for _, d := range describers {
-			out = append(out, d(cfg, f)...)
-		}
+		out = append(out, f(cfg)...)
 	}
 	return
 }
