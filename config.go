@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Logger  logger.Logger `json:"-" yaml:"-" mapstructure:"-"`
 	AppName string        `json:"-" yaml:"-" mapstructure:"-"`
+	TagName string        `json:"-" yaml:"-" mapstructure:"-"`
 	File    string        `json:"config,omitempty" yaml:"config,omitempty" mapstructure:"-"`
 	Finders []Finder      `json:"-" yaml:"-" mapstructure:"-"`
 }
@@ -18,6 +19,7 @@ func NewConfig(appName string) Config {
 	return Config{
 		Logger:  discard.New(),
 		AppName: appName,
+		TagName: "yaml",
 		// search for configs in specific order
 		Finders: []Finder{
 			// 1. look for a directly configured file

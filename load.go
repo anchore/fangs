@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -67,16 +67,13 @@ func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) err
 	v.AllowEmptyEnv(true)
 	v.AutomaticEnv()
 
-	appPrefix := cfg.AppName
-	if appPrefix != "" {
-		appPrefix += "."
-	}
-
 	for _, configuration := range configurations {
-		configureViper(cfg, v, reflect.ValueOf(configuration), flags, appPrefix, "")
+		configureViper(cfg, v, reflect.ValueOf(configuration), flags, []string{})
 
 		// unmarshal fully populated viper object onto config
-		err := v.Unmarshal(configuration)
+		err := v.Unmarshal(configuration, func(dc *mapstructure.DecoderConfig) {
+			dc.TagName = cfg.TagName
+		})
 		if err != nil {
 			return err
 		}
@@ -94,7 +91,7 @@ func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) err
 // configureViper loads the default configuration values into the viper instance,
 // before the config values are read and parsed. the value _must_ be a pointer but
 // may be a pointer to a pointer
-func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, appPrefix string, path string) {
+func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, path []string) {
 	typ := value.Type()
 	if !isPtr(typ) {
 		panic(fmt.Sprintf("configureViper value must be a pointer, got: %+v", value))
@@ -112,7 +109,8 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 	}
 
 	if !isStruct(typ) {
-		envVar := strings.ToUpper(regexp.MustCompile("[^a-zA-Z0-9]").ReplaceAllString(appPrefix+path, "_"))
+		envVar := envVar(cfg.AppName, path)
+		path := strings.Join(path, ".")
 
 		if flag, ok := flags[ptr]; ok {
 			cfg.Logger.Tracef("binding env var w/flag: %s", envVar)
@@ -129,35 +127,32 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 		return
 	}
 
-	prefix := path
-
-	if prefix != "" {
-		prefix += "."
-	}
-
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
 	for i := 0; i < value.NumField(); i++ {
 		fieldValue := value.Field(i)
 		field := typ.Field(i)
 
-		name := field.Name
-
-		if tag, ok := field.Tag.Lookup("mapstructure"); ok {
+		path := path
+		if tag, ok := field.Tag.Lookup(cfg.TagName); ok {
 			// handle ,squash mapstructure tags
-			tag = strings.Split(tag, ",")[0]
+			parts := strings.Split(tag, ",")
+			tag = parts[0]
 			if tag == "-" {
 				continue
 			}
-			if tag == "" {
-				name = path
-			} else {
-				name = prefix + tag
+			switch {
+			case contains(parts, "squash"):
+				// use the current path
+			case tag == "":
+				path = append(path, field.Name)
+			default:
+				path = append(path, tag)
 			}
 		} else {
-			name = prefix + name
+			path = append(path, field.Name)
 		}
 
-		configureViper(cfg, v, fieldValue.Addr(), flags, appPrefix, name)
+		configureViper(cfg, v, fieldValue.Addr(), flags, path)
 	}
 }
 
