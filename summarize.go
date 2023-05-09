@@ -10,11 +10,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type Describer interface {
-	Describe(value reflect.Value, field reflect.StructField) string
+type FieldDescriber interface {
+	DescribeField(value reflect.Value, field reflect.StructField) string
 }
 
-func Summarize(cfg Config, value interface{}, describers ...Describer) string {
+func Summarize(cfg Config, value interface{}, describers ...FieldDescriber) string {
 	describers = append(describers, &structFieldDescriber{})
 	out := summarize(cfg, reflect.ValueOf(value), nil, describers, "")
 	return strings.TrimSpace(out)
@@ -28,7 +28,7 @@ func SummarizeLocations(cfg Config) (out []string) {
 }
 
 //nolint:gocognit
-func summarize(cfg Config, value reflect.Value, path []string, describers []Describer, indent string) string {
+func summarize(cfg Config, value reflect.Value, path []string, describers []FieldDescriber, indent string) string {
 	out := bytes.Buffer{}
 
 	v, t := base(value)
@@ -78,7 +78,7 @@ func summarize(cfg Config, value reflect.Value, path []string, describers []Desc
 
 			description := ""
 			for _, d := range describers {
-				description = d.Describe(v, field)
+				description = d.DescribeField(v, field)
 				if description != "" {
 					break
 				}
@@ -119,9 +119,9 @@ func base(v reflect.Value) (reflect.Value, reflect.Type) {
 
 type structFieldDescriber struct{}
 
-var _ Describer = (*structFieldDescriber)(nil)
+var _ FieldDescriber = (*structFieldDescriber)(nil)
 
-func (*structFieldDescriber) Describe(_ reflect.Value, field reflect.StructField) string {
+func (*structFieldDescriber) DescribeField(_ reflect.Value, field reflect.StructField) string {
 	return field.Tag.Get("description")
 }
 
@@ -130,16 +130,16 @@ type commandDescriber struct {
 	flagRefs flagRefs
 }
 
-var _ Describer = (*commandDescriber)(nil)
+var _ FieldDescriber = (*commandDescriber)(nil)
 
-func NewCommandDescriber(cfg Config, cmd *cobra.Command) Describer {
+func NewCommandDescriber(cfg Config, cmd *cobra.Command) FieldDescriber {
 	return &commandDescriber{
 		tag:      cfg.TagName,
 		flagRefs: collectFlagRefs(cmd),
 	}
 }
 
-func (d *commandDescriber) Describe(v reflect.Value, _ reflect.StructField) string {
+func (d *commandDescriber) DescribeField(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
 		v = v.Addr()
 		f := d.flagRefs[v.Pointer()]
@@ -164,7 +164,7 @@ type DirectDescriber struct {
 	flagRefs flagRefs
 }
 
-var _ Describer = (*DirectDescriber)(nil)
+var _ FieldDescriber = (*DirectDescriber)(nil)
 
 func NewDescriber() *DirectDescriber {
 	return &DirectDescriber{
@@ -183,7 +183,7 @@ func (d *DirectDescriber) Add(ptr any, description string) {
 	}
 }
 
-func (d *DirectDescriber) Describe(v reflect.Value, _ reflect.StructField) string {
+func (d *DirectDescriber) DescribeField(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
 		v = v.Addr()
 	}
