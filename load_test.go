@@ -1,4 +1,4 @@
-package config
+package fangs
 
 import (
 	"os"
@@ -15,13 +15,13 @@ import (
 )
 
 type sub struct {
-	Sv      string `json:"sv" yaml:"sv" mapstructure:"sv"`
-	Unbound string `json:"unbound" yaml:"unbound" mapstructure:"unbound"`
+	Sv      string `json:"sv" yaml:"sv"`
+	Unbound string `json:"unbound" yaml:"unbound"`
 }
 
 type root struct {
-	V   string `json:"v" yaml:"v" mapstructure:"v"`
-	Sub *sub   `json:"sub" yaml:"sub" mapstructure:"sub"`
+	V   string `json:"v" yaml:"v"`
+	Sub *sub   `json:"sub" yaml:"sub"`
 }
 
 func Test_LoadDefaults(t *testing.T) {
@@ -46,6 +46,36 @@ func Test_LoadFromConfigFile(t *testing.T) {
 
 	require.Equal(t, "direct-config-sub-v", s.Sv)
 	require.Equal(t, "direct-config-v", r.V)
+}
+
+func Test_LoadEmbeddedSquash(t *testing.T) {
+	type Top struct {
+		Value string
+	}
+	type Sub struct {
+		Value string
+	}
+	type t1 struct {
+		Top `yaml:",inline,squash"`
+		Sub `yaml:"sub2"`
+	}
+
+	cfg := NewConfig("app")
+	cmd := &cobra.Command{}
+
+	v := &t1{
+		Top: Top{},
+		Sub: Sub{},
+	}
+
+	t.Setenv("APP_VALUE", "top-v")
+	t.Setenv("APP_SUB2_VALUE", "sub2-v")
+
+	err := Load(cfg, cmd, v)
+	require.NoError(t, err)
+
+	require.Equal(t, "top-v", v.Top.Value)
+	require.Equal(t, "sub2-v", v.Sub.Value)
 }
 
 func Test_LoadFromEnv(t *testing.T) {
@@ -197,7 +227,7 @@ func p[T any](t T) *T {
 
 func Test_flagBoolPtrValues(t *testing.T) {
 	type s struct {
-		Bool *bool `mapstructure:"bool"`
+		Bool *bool `yaml:"bool"`
 	}
 	a := &s{}
 
@@ -231,13 +261,13 @@ func Test_AllFieldTypes(t *testing.T) {
 	}
 
 	type all struct {
-		Bool        bool     `mapstructure:"bool"`
-		BoolPtr     *bool    `mapstructure:"bool-ptr"`
-		Int         int      `mapstructure:"int"`
-		IntPtr      *int     `mapstructure:"int-ptr"`
-		String      string   `mapstructure:"string"`
-		StringPtr   *string  `mapstructure:"string-ptr"`
-		StringArray []string `mapstructure:"string-array"`
+		Bool        bool     `yaml:"bool"`
+		BoolPtr     *bool    `yaml:"bool-ptr"`
+		Int         int      `yaml:"int"`
+		IntPtr      *int     `yaml:"int-ptr"`
+		String      string   `yaml:"string"`
+		StringPtr   *string  `yaml:"string-ptr"`
+		StringArray []string `yaml:"string-array"`
 	}
 
 	tests := []struct {
@@ -495,9 +525,9 @@ func Test_PostLoad(t *testing.T) {
 }
 
 type rootPostLoad struct {
-	V   string `json:"v" yaml:"v" mapstructure:"v"`
+	V   string `json:"v" yaml:"v"`
 	V2  string
-	Sub subPostLoad `json:"sub" yaml:"sub" mapstructure:"sub"`
+	Sub subPostLoad `json:"sub" yaml:"sub"`
 }
 
 func (r *rootPostLoad) PostLoad() error {
@@ -508,9 +538,9 @@ func (r *rootPostLoad) PostLoad() error {
 var _ PostLoad = (*rootPostLoad)(nil)
 
 type subPostLoad struct {
-	Sv   string `json:"sv" yaml:"sv" mapstructure:"sv"`
+	Sv   string `json:"sv" yaml:"sv"`
 	Sv2  string
-	Sub2 subSubPostLoad `json:"sub2" yaml:"sub2" mapstructure:"sub2"`
+	Sub2 subSubPostLoad `json:"sub2" yaml:"sub2"`
 }
 
 func (s *subPostLoad) PostLoad() error {
@@ -521,9 +551,9 @@ func (s *subPostLoad) PostLoad() error {
 var _ PostLoad = (*subPostLoad)(nil)
 
 type subSubPostLoad struct {
-	Ssv  string `json:"ssv" yaml:"ssv" mapstructure:"ssv"`
+	Ssv  string `json:"ssv" yaml:"ssv"`
 	Ssv2 string
-	Sub3 subSubSubPostLoad `json:"sub3" yaml:"sub3" mapstructure:"sub3"`
+	Sub3 subSubSubPostLoad `json:"sub3" yaml:"sub3"`
 }
 
 func (s *subSubPostLoad) PostLoad() error {
@@ -534,7 +564,7 @@ func (s *subSubPostLoad) PostLoad() error {
 var _ PostLoad = (*subSubPostLoad)(nil)
 
 type subSubSubPostLoad struct {
-	Sssv  string `json:"sssv" yaml:"sssv" mapstructure:"sssv"`
+	Sssv  string `json:"sssv" yaml:"sssv"`
 	Sssv2 string
 }
 

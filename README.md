@@ -16,8 +16,10 @@ in fairly simple ways.
 
 In order to use this library, a consumer will need to:
 * Define configuration structs
+    * By default, use `yaml` struct tags (can revert this to `mapstructure` in the `Config`)
+    * For embedded structs to be inline, these must use the nonstandard `,squash` option
 * Define Cobra commands
-* Add flags to Cobra using the `*P` flag variants
+* Add flags to Cobra using the `*Var*` flag variants
 * Call `config.Load` during command invocation
 
 A number of examples can be seen in the tests, but a simple example is as follows:
@@ -25,12 +27,17 @@ A number of examples can be seen in the tests, but a simple example is as follow
 ```go
 // define configuration structs:
 type Options struct {
-    Output string `mapstructure:"output"`
-    Scanning ScanningOptions `mapstructure:"scanning"`
+    Output string `yaml:"output"`
+    Scanning ScanningOptions `yaml:"scanning"`
+	EmbeddedOptions `yaml:",inline,squash"` // need to use ,squash
 }
 
 type ScanningOptions struct {
-    Depth int `mapstructure:"output"`
+    Depth int `yaml:"output"`
+}
+
+type EmbeddedOptions struct {
+	Embedded string `yaml:"string"`
 }
 
 // fangs needs a configuration with a minimum of an app name
@@ -56,10 +63,10 @@ func makeCommand(cfg config.Config) cobra.Command {
         },
     }
 
-    // add flags like normal, making sure to use the *P variants
+    // add flags like normal, making sure to use the *Var* variants
     flags := cmd.Flags()
     flags.StringVarP(&opts.Output, "output", "o", opts.Output, "output usage")
-    flags.IntVarP(&opts.Scanning.Depth, "depth", "", opts.Scanning.Depth, "depth usage")
+    flags.IntVar(&opts.Scanning.Depth, "depth", opts.Scanning.Depth, "depth usage")
     
     return cmd
 }
