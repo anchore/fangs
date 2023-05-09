@@ -164,19 +164,19 @@ func collectFlagRefs(cmd *cobra.Command) flagRefs {
 	return out
 }
 
-type Describers struct {
+type DirectDescriber struct {
 	flagRefs flagRefs
 }
 
-var _ Describer = (*Describers)(nil)
+var _ Describer = (*DirectDescriber)(nil)
 
-func NewDescribers() *Describers {
-	return &Describers{
+func NewDescriber() *DirectDescriber {
+	return &DirectDescriber{
 		flagRefs: flagRefs{},
 	}
 }
 
-func (d *Describers) Add(ptr any, description string) {
+func (d *DirectDescriber) Add(ptr any, description string) {
 	v := reflect.ValueOf(ptr)
 	if !isPtr(v.Type()) {
 		panic(fmt.Sprintf("Descriptions.Add requires a pointer, but got: %+v", ptr))
@@ -187,7 +187,7 @@ func (d *Describers) Add(ptr any, description string) {
 	}
 }
 
-func (d *Describers) Describe(v reflect.Value, _ reflect.StructField) string {
+func (d *DirectDescriber) Describe(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
 		v = v.Addr()
 	}

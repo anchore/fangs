@@ -45,7 +45,7 @@ func Test_Summarize(t *testing.T) {
 
 	d1 := NewCommandDescriber(cfg, cmd)
 
-	desc := NewDescribers()
+	desc := NewDescriber()
 	desc.Add(&t1.TopBool, "top-bool manual description")
 	desc.Add(&t1.TSub1.Name, "sub1-name manual description")
 	desc.Add(&t1.TSub3.Val, "sub3-val manual description")
