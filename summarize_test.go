@@ -1,9 +1,14 @@
 package fangs
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/adrg/xdg"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,4 +66,49 @@ sub3:
   name-tsub3: '' #  (env var: APP_SUB3_NAME_TSUB3)
   
   Val: 0 # sub3-val manual description (env var: APP_SUB3_VAL)`, s)
+}
+
+func Test_SummarizeLocations(t *testing.T) {
+	t.Cleanup(func() {
+		xdg.Reload()
+	})
+
+	disableCache := homedir.DisableCache
+	homedir.DisableCache = true
+	t.Cleanup(func() {
+		homedir.DisableCache = disableCache
+	})
+
+	t.Setenv("HOME", "/home-dir")
+	t.Setenv("XDG_CONFIG_HOME", "/xdg-home")
+	t.Setenv("XDG_CONFIG_DIRS", "/xdg-dir1:/xdg-dir2")
+
+	xdg.Reload()
+
+	cfg := NewConfig("app")
+	cfg.File = "/my-app/config.yaml"
+
+	locations := SummarizeLocations(cfg, AllDescribers()...)
+	got := strings.Join(locations, "\n")
+
+	allExts := func(path string) (out []string) {
+		for _, ext := range viper.SupportedExts {
+			out = append(out, path+"."+ext)
+		}
+		return
+	}
+
+	opts := []any{
+		"/my-app/config.yaml",
+		strings.Join(allExts(".app"), "\n"),
+		strings.Join(allExts(".app/config"), "\n"),
+		strings.Join(allExts("/home-dir/.app"), "\n"),
+		strings.Join(allExts("/xdg-home/app/config"), "\n"),
+		strings.Join(allExts("/xdg-dir1/app/config"), "\n"),
+		strings.Join(allExts("/xdg-dir2/app/config"), "\n"),
+	}
+
+	expected := fmt.Sprintf(strings.Repeat("%s\n", len(opts)), opts...)
+
+	require.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(got))
 }
