@@ -37,10 +37,13 @@ func Test_Summarize(t *testing.T) {
 	t1 := &T1{}
 
 	cmd := &cobra.Command{}
-	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
-	cmd.Flags().StringVar(&t1.TSub2.Name, "sub2-name", "", "sub2-name command description")
+	subCmd := &cobra.Command{}
+	cmd.AddCommand(subCmd)
 
-	d1 := NewCommandDescriptions(cfg, cmd)
+	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
+	subCmd.Flags().StringVar(&t1.TSub2.Name, "sub2-name", "", "sub2-name command description")
+
+	d1 := NewCommandDescriber(cfg, cmd)
 
 	desc := NewDescribers()
 	desc.Add(&t1.TopBool, "top-bool manual description")

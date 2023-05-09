@@ -129,21 +129,21 @@ func (*structFieldDescriber) Describe(_ reflect.Value, field reflect.StructField
 	return field.Tag.Get("description")
 }
 
-type CommandDescriber struct {
+type commandDescriber struct {
 	tag      string
 	flagRefs flagRefs
 }
 
-var _ Describer = (*CommandDescriber)(nil)
+var _ Describer = (*commandDescriber)(nil)
 
-func NewCommandDescriptions(cfg Config, cmd *cobra.Command) Describer {
-	return &CommandDescriber{
+func NewCommandDescriber(cfg Config, cmd *cobra.Command) Describer {
+	return &commandDescriber{
 		tag:      cfg.TagName,
 		flagRefs: collectFlagRefs(cmd),
 	}
 }
 
-func (d *CommandDescriber) Describe(v reflect.Value, _ reflect.StructField) string {
+func (d *commandDescriber) Describe(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
 		v = v.Addr()
 		f := d.flagRefs[v.Pointer()]
