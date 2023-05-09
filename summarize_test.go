@@ -91,7 +91,7 @@ func Test_SummarizeLocations(t *testing.T) {
 	cfg := NewConfig("app")
 	cfg.File = "/my-app/config.yaml"
 
-	locations := SummarizeLocations(cfg, AllDescribers()...)
+	locations := SummarizeLocations(cfg)
 	got := strings.Join(locations, "\n")
 
 	allExts := func(path string) (out []string) {
