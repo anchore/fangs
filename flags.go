@@ -1,6 +1,7 @@
 package fangs
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/spf13/pflag"
@@ -11,42 +12,45 @@ type FlagAdder interface {
 }
 
 func AddFlags(flags *pflag.FlagSet, structs ...any) {
+	f := reflect.ValueOf(flags)
 	for _, o := range structs {
-		addFlags(flags, false, o)
+		v := reflect.ValueOf(o)
+		if !isPtr(v.Type()) {
+			panic(fmt.Sprintf("AddFlags must be called with pointer receviers, got: %#v", o))
+		}
+		addFlags(f, v)
 	}
 }
 
-func addFlags(flags *pflag.FlagSet, skip bool, o any) {
-	if !skip {
-		invokeAddFlags(flags, o)
-	}
+func addFlags(flags reflect.Value, v reflect.Value) {
+	invokeAddFlags(flags, v)
 
-	v, t := base(reflect.ValueOf(o))
+	v, t := base(v)
 
 	if isStruct(t) {
 		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
 			v := v.Field(i)
 			v = v.Addr()
 			if !v.CanInterface() {
 				continue
 			}
 
-			addFlags(flags, f.Anonymous, v.Interface())
+			addFlags(flags, v)
 		}
 	}
 }
 
-func invokeAddFlags(flags *pflag.FlagSet, o any) {
-	if o, ok := o.(FlagAdder); ok {
-		o.AddFlags(flags)
-		return
-	}
-	v := reflect.ValueOf(o)
-	if isPtr(v.Type()) {
-		v = v.Elem()
-		if v.CanInterface() {
-			invokeAddFlags(flags, v.Interface())
-		}
+func invokeAddFlags(flags reflect.Value, v reflect.Value) {
+	defer func() {
+		// we need to handle embedded structs having AddFlags methods called, adding flags with existing names
+		// FIXME: bad idea, should at least log something
+		_ = recover()
+	}()
+
+	t := v.Type()
+	m, ok := t.MethodByName("AddFlags")
+
+	if ok {
+		_ = m.Func.Call([]reflect.Value{v, flags})
 	}
 }

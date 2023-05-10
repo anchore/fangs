@@ -7,6 +7,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_EmbeddedAddFlags(t *testing.T) {
+	type ty1 struct {
+		Something string
+		Sub2
+	}
+
+	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
+	t1 := &ty1{}
+
+	AddFlags(flags, t1)
+
+	var flagNames []string
+	flags.VisitAll(func(flag *pflag.Flag) {
+		flagNames = append(flagNames, flag.Name)
+	})
+
+	assert.Equal(t, flagNames, []string{"sub2-flag"})
+}
+
 func Test_AddFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
 	t1 := &T1{}
