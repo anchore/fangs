@@ -3,27 +3,9 @@ package fangs
 import (
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
-
-func Test_AddCommandFlags(t *testing.T) {
-	cmd := &cobra.Command{}
-
-	t1 := &T1{}
-	AddCommandFlags(cmd, t1)
-
-	var flagNames []string
-	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		flagNames = append(flagNames, flag.Name)
-	})
-
-	assert.Len(t, flagNames, 3)
-	assert.Contains(t, flagNames, "t1-flag")
-	assert.Contains(t, flagNames, "sub2-flag")
-	assert.Contains(t, flagNames, "sub3-flag")
-}
 
 func Test_AddFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
@@ -70,4 +52,4 @@ func (t T1) AddFlags(flags *pflag.FlagSet) {
 	flags.Int("t1-flag", 1, "usage")
 }
 
-var _ AddsFlags = (*T1)(nil)
+var _ FlagAdder = (*T1)(nil)

@@ -3,16 +3,11 @@ package fangs
 import (
 	"reflect"
 
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-type AddsFlags interface {
+type FlagAdder interface {
 	AddFlags(flags *pflag.FlagSet)
-}
-
-func AddCommandFlags(cmd *cobra.Command, structs ...any) {
-	AddFlags(cmd.Flags(), structs...)
 }
 
 func AddFlags(flags *pflag.FlagSet, structs ...any) {
@@ -43,7 +38,7 @@ func addFlags(flags *pflag.FlagSet, skip bool, o any) {
 }
 
 func invokeAddFlags(flags *pflag.FlagSet, o any) {
-	if o, ok := o.(AddsFlags); ok {
+	if o, ok := o.(FlagAdder); ok {
 		o.AddFlags(flags)
 		return
 	}
