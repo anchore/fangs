@@ -7,16 +7,28 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-type FieldDescriber interface {
-	DescribeField(value reflect.Value, field reflect.StructField) string
+func Summarize(cfg Config, descriptions DescriptionProvider, values ...any) string {
+	out := ""
+	for _, value := range values {
+		v := reflect.ValueOf(value)
+		out += summarize(cfg, descriptions, v, nil, "")
+	}
+	return strings.TrimSpace(out)
 }
 
-func Summarize(cfg Config, value interface{}, describers ...FieldDescriber) string {
-	describers = append(describers, &structFieldDescriber{})
-	out := summarize(cfg, reflect.ValueOf(value), nil, describers, "")
+func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
+	root := cmd
+	for root.Parent() != nil {
+		root = root.Parent()
+	}
+	descriptions := DescriptionProviders(
+		NewStructDescriber(values...),
+		NewStructDescriptionTagProvider(),
+		NewCommandDescriber(cfg.TagName, root),
+	)
+	out := Summarize(cfg, descriptions, values...)
 	return strings.TrimSpace(out)
 }
 
@@ -28,13 +40,13 @@ func SummarizeLocations(cfg Config) (out []string) {
 }
 
 //nolint:gocognit
-func summarize(cfg Config, value reflect.Value, path []string, describers []FieldDescriber, indent string) string {
+func summarize(cfg Config, descriptions DescriptionProvider, value reflect.Value, path []string, indent string) string {
 	out := bytes.Buffer{}
 
 	v, t := base(value)
 
 	if !isStruct(t) {
-		panic(fmt.Sprintf("Summarize requires struct types, got: %+v", value.Interface()))
+		panic(fmt.Sprintf("Summarize requires struct types, got: %#v", value.Interface()))
 	}
 
 	for i := 0; i < t.NumField(); i++ {
@@ -67,24 +79,18 @@ func summarize(cfg Config, value reflect.Value, path []string, describers []Fiel
 		var section string
 		if isStruct(t) {
 			if name == "" {
-				section = summarize(cfg, v, path, describers, indent)
+				section = summarize(cfg, descriptions, v, path, indent)
 			} else {
 				section = fmt.Sprintf("%s:\n%s",
 					name,
-					summarize(cfg, v, path, describers, indent+"  "))
+					summarize(cfg, descriptions, v, path, indent+"  "))
 			}
 		} else {
 			envVar := envVar(cfg.AppName, path)
 
-			description := ""
-			for _, d := range describers {
-				description = d.DescribeField(v, field)
-				if description != "" {
-					break
-				}
-			}
+			description := descriptions.GetDescription(v, field)
 
-			section = fmt.Sprintf("%s: %s # %s (env var: %s)\n\n", name, printVal(v), description, envVar)
+			section = fmt.Sprintf("%s: %s # %s (env: %s)\n\n", name, printVal(v), description, envVar)
 		}
 
 		section = Indent(section, indent)
@@ -117,29 +123,21 @@ func base(v reflect.Value) (reflect.Value, reflect.Type) {
 	return v, v.Type()
 }
 
-type structFieldDescriber struct{}
-
-var _ FieldDescriber = (*structFieldDescriber)(nil)
-
-func (*structFieldDescriber) DescribeField(_ reflect.Value, field reflect.StructField) string {
-	return field.Tag.Get("description")
-}
-
 type commandDescriber struct {
 	tag      string
 	flagRefs flagRefs
 }
 
-var _ FieldDescriber = (*commandDescriber)(nil)
+var _ DescriptionProvider = (*commandDescriber)(nil)
 
-func NewCommandDescriber(cfg Config, cmd *cobra.Command) FieldDescriber {
+func NewCommandDescriber(tagName string, cmd *cobra.Command) DescriptionProvider {
 	return &commandDescriber{
-		tag:      cfg.TagName,
+		tag:      tagName,
 		flagRefs: collectFlagRefs(cmd),
 	}
 }
 
-func (d *commandDescriber) DescribeField(v reflect.Value, _ reflect.StructField) string {
+func (d *commandDescriber) GetDescription(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
 		v = v.Addr()
 		f := d.flagRefs[v.Pointer()]
@@ -158,40 +156,4 @@ func collectFlagRefs(cmd *cobra.Command) flagRefs {
 		}
 	}
 	return out
-}
-
-type DirectDescriber struct {
-	flagRefs flagRefs
-}
-
-var _ FieldDescriber = (*DirectDescriber)(nil)
-
-func NewDescriber() *DirectDescriber {
-	return &DirectDescriber{
-		flagRefs: flagRefs{},
-	}
-}
-
-func (d *DirectDescriber) Add(ptr any, description string) {
-	v := reflect.ValueOf(ptr)
-	if !isPtr(v.Type()) {
-		panic(fmt.Sprintf("Descriptions.Add requires a pointer, but got: %+v", ptr))
-	}
-	p := v.Pointer()
-	d.flagRefs[p] = &pflag.Flag{
-		Usage: description,
-	}
-}
-
-func (d *DirectDescriber) DescribeField(v reflect.Value, _ reflect.StructField) string {
-	if v.CanAddr() {
-		v = v.Addr()
-	}
-	if isPtr(v.Type()) {
-		f := d.flagRefs[v.Pointer()]
-		if f != nil {
-			return f.Usage
-		}
-	}
-	return ""
 }
