@@ -13,7 +13,7 @@ import (
 )
 
 func Load(cfg Config, cmd *cobra.Command, configurations ...any) error {
-	return LoadConfig(cfg, commandFlagRefs(cmd), configurations...)
+	return loadConfig(cfg, commandFlagRefs(cmd), configurations...)
 }
 
 func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) error {
@@ -30,7 +30,7 @@ func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) erro
 	return Load(cfg, cmd, value.Interface())
 }
 
-func LoadConfig(cfg Config, flags flagRefs, configurations ...any) error {
+func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	// ensure the config is set up sufficiently
 	if cfg.Logger == nil || cfg.Finders == nil {
 		return fmt.Errorf("config.Load requires logger and finders to be set, but only has %+v", cfg)
@@ -40,10 +40,6 @@ func LoadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	// e.g. pod.context = APPNAME_POD_CONTEXT
 	v := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
 
-	return load(cfg, v, flags, configurations...)
-}
-
-func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) error {
 	for _, configuration := range configurations {
 		if !isPtr(reflect.TypeOf(configuration)) {
 			return fmt.Errorf("config.Load configuration parameters must be a pointers, got: %s -- %v", reflect.TypeOf(configuration).Name(), configuration)
@@ -54,7 +50,7 @@ func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) err
 	// flags have already been loaded into viper by command construction
 
 	// check if user specified config; otherwise read all possible paths
-	if err := loadConfig(cfg, v); err != nil {
+	if err := readConfigFile(cfg, v); err != nil {
 		if isNotFoundErr(err) {
 			cfg.Logger.Debug("no config file found, using defaults")
 		} else {
@@ -94,7 +90,7 @@ func load(cfg Config, v *viper.Viper, flags flagRefs, configurations ...any) err
 func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, path []string) {
 	typ := value.Type()
 	if !isPtr(typ) {
-		panic(fmt.Sprintf("configureViper value must be a pointer, got: %+v", value))
+		panic(fmt.Sprintf("configureViper value must be a pointer, got: %#v", value))
 	}
 
 	// value is always a pointer, addr within a struct
@@ -116,7 +112,7 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 			cfg.Logger.Tracef("binding env var w/flag: %s", envVar)
 			err := v.BindPFlag(path, flag)
 			if err != nil {
-				cfg.Logger.Debugf("unable to bind flag: %s to %+v", path, flag)
+				cfg.Logger.Debugf("unable to bind flag: %s to %#v", path, flag)
 			}
 			return
 		}
@@ -156,7 +152,7 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 	}
 }
 
-func loadConfig(cfg Config, v *viper.Viper) error {
+func readConfigFile(cfg Config, v *viper.Viper) error {
 	for _, finder := range cfg.Finders {
 		for _, file := range finder(cfg) {
 			if !fileExists(file) {
@@ -181,7 +177,7 @@ func postLoad(obj any) error {
 	value := reflect.ValueOf(obj)
 	typ := value.Type()
 	if isPtr(typ) {
-		if p, ok := obj.(PostLoad); ok {
+		if p, ok := obj.(PostLoad); ok && !isPromotedMethod(obj, "PostLoad") {
 			// the field implements parser, call it
 			if err := p.PostLoad(); err != nil {
 				return err

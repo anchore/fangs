@@ -5,25 +5,30 @@ import (
 	"reflect"
 
 	"github.com/spf13/pflag"
+
+	"github.com/anchore/go-logger"
 )
 
+// FlagAdder interface can be implemented by structs in order to add flags when AddFlags is called
 type FlagAdder interface {
-	AddFlags(flags *pflag.FlagSet)
+	AddFlags(flags FlagSet)
 }
 
-func AddFlags(flags *pflag.FlagSet, structs ...any) {
-	f := reflect.ValueOf(flags)
+// AddFlags traverses the object graphs from the structs provided and calls all AddFlags methods implemented on them
+func AddFlags(log logger.Logger, flags *pflag.FlagSet, structs ...any) {
+	flagSet := NewPFlagSet(log, flags)
 	for _, o := range structs {
-		v := reflect.ValueOf(o)
-		if !isPtr(v.Type()) {
-			panic(fmt.Sprintf("AddFlags must be called with pointer receviers, got: %#v", o))
-		}
-		addFlags(f, v)
+		addFlags(log, flagSet, o)
 	}
 }
 
-func addFlags(flags reflect.Value, v reflect.Value) {
-	invokeAddFlags(flags, v)
+func addFlags(log logger.Logger, flags FlagSet, o any) {
+	v := reflect.ValueOf(o)
+	if !isPtr(v.Type()) {
+		panic(fmt.Sprintf("AddFlags must be called with pointers, got: %#v", o))
+	}
+
+	invokeAddFlags(log, flags, o)
 
 	v, t := base(v)
 
@@ -35,22 +40,21 @@ func addFlags(flags reflect.Value, v reflect.Value) {
 				continue
 			}
 
-			addFlags(flags, v)
+			addFlags(log, flags, v.Interface())
 		}
 	}
 }
 
-func invokeAddFlags(flags reflect.Value, v reflect.Value) {
+func invokeAddFlags(log logger.Logger, flags FlagSet, o any) {
 	defer func() {
-		// we need to handle embedded structs having AddFlags methods called, adding flags with existing names
-		// FIXME: bad idea, should at least log something
-		_ = recover()
+		// we need to handle embedded structs having AddFlags methods called,
+		// potentially adding flags with existing names
+		if err := recover(); err != nil {
+			log.Debugf("got error while invoking AddFlags: %#v", err)
+		}
 	}()
 
-	t := v.Type()
-	m, ok := t.MethodByName("AddFlags")
-
-	if ok {
-		_ = m.Func.Call([]reflect.Value{v, flags})
+	if o, ok := o.(FlagAdder); ok && !isPromotedMethod(o, "AddFlags") {
+		o.AddFlags(flags)
 	}
 }

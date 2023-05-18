@@ -5,6 +5,8 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/anchore/go-logger/adapter/discard"
 )
 
 func Test_EmbeddedAddFlags(t *testing.T) {
@@ -16,7 +18,7 @@ func Test_EmbeddedAddFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
 	t1 := &ty1{}
 
-	AddFlags(flags, t1)
+	AddFlags(discard.New(), flags, t1)
 
 	var flagNames []string
 	flags.VisitAll(func(flag *pflag.Flag) {
@@ -29,7 +31,7 @@ func Test_EmbeddedAddFlags(t *testing.T) {
 func Test_AddFlags(t *testing.T) {
 	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
 	t1 := &T1{}
-	AddFlags(flags, t1)
+	AddFlags(discard.New(), flags, t1)
 
 	var flagNames []string
 	flags.VisitAll(func(flag *pflag.Flag) {
@@ -46,17 +48,19 @@ type Sub2 struct {
 	Value string
 }
 
-func (t *Sub2) AddFlags(flags *pflag.FlagSet) {
-	flags.String("sub2-flag", "val", "usage")
+func (t *Sub2) AddFlags(flags FlagSet) {
+	flags.StringVarP(&t.Value, "sub2-flag", "", "usage")
 }
 
 type Sub3 struct {
 	Value string
 }
 
-func (t Sub3) AddFlags(flags *pflag.FlagSet) {
-	flags.String("sub3-flag", "val", "usage")
+func (t *Sub3) AddFlags(flags FlagSet) {
+	flags.StringVarP(&t.Value, "sub3-flag", "", "usage")
 }
+
+var _ FlagAdder = (*Sub3)(nil)
 
 type Sub1 struct {
 	Sub2
@@ -64,11 +68,12 @@ type Sub1 struct {
 }
 
 type T1 struct {
-	Val Sub1
+	Ival int
+	Val  Sub1
 }
 
-func (t T1) AddFlags(flags *pflag.FlagSet) {
-	flags.Int("t1-flag", 1, "usage")
+func (t *T1) AddFlags(flags FlagSet) {
+	flags.IntVarP(&t.Ival, "t1-flag", "", "usage")
 }
 
 var _ FlagAdder = (*T1)(nil)
