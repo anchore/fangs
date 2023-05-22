@@ -20,28 +20,34 @@ func Test_Summarize(t *testing.T) {
 	cmd := &cobra.Command{}
 	root.AddCommand(cmd)
 
-	s0 := &summarize0{
-		Name0: "name0 val",
-		Type0: "type0 val",
-		S2: summarize2{
-			Field1: 10,
-			Field2: true,
+	type ty0 struct {
+		S0 summarize0 `yaml:",squash" mapstructure:",squash"`
+		S1 summarize1 `yaml:",squash" mapstructure:",squash"`
+	}
+
+	t0 := &ty0{
+		S0: summarize0{
+			Name0: "name0 val",
+			Type0: "type0 val",
+			S2: summarize2{
+				Field1: 10,
+				Field2: true,
+			},
+		},
+		S1: summarize1{
+			Name: "s1 name",
+			Type: "s1 type",
+			S2: summarize2{
+				Field1: 11,
+			},
 		},
 	}
 
-	s1 := &summarize1{
-		Name: "s1 name",
-		Type: "s1 type",
-		S2: summarize2{
-			Field1: 11,
-		},
-	}
-
-	AddFlags(discard.New(), root.PersistentFlags(), s0)
-	AddFlags(discard.New(), cmd.Flags(), s1)
+	AddFlags(discard.New(), root.PersistentFlags(), &t0.S0)
+	AddFlags(discard.New(), cmd.Flags(), &t0.S1)
 
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, cmd, s0, s1)
+	s := SummarizeCommand(cfg, cmd, t0, &t0.S0, &t0.S1)
 	require.Equal(t, `Name0: 'name0 val' # name0 usage flag (env: APP_NAME0)
 
 Type0: 'type0 val' # type0 tag (env: APP_TYPE0)
@@ -58,13 +64,16 @@ Type: 's1 type' # described type (env: APP_TYPE)
 s2:
   Field1: 11 # field 1 usage (env: APP_S2_FIELD1)
   
-  Field2: false # field2 described (env: APP_S2_FIELD2)`, s)
+  Field2: false # field2 described (env: APP_S2_FIELD2)
+  
+`, s)
 }
 
 type summarize0 struct {
-	Name0 string
-	Type0 string     `description:"type0 tag"`
-	S2    summarize2 `yaml:"s2-0"`
+	Name0      string
+	Type0      string     `description:"type0 tag"`
+	S2         summarize2 `yaml:"s2-0"`
+	unexported summarize2
 }
 
 func (s *summarize0) AddFlags(flags FlagSet) {
@@ -138,7 +147,7 @@ func Test_SummarizeValues(t *testing.T) {
 	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
 	subCmd.Flags().StringVar(&t1.TSub2.Name, "sub2-name", "", "sub2-name command description")
 
-	d1 := NewCommandDescriber(cfg.TagName, cmd)
+	d1 := NewCommandFlagDescriptionProvider(cfg.TagName, cmd)
 
 	desc := NewDirectDescriber()
 	desc.Add(&t1.TopBool, "top-bool manual description")
@@ -163,9 +172,11 @@ TSub2:
   Val: 0 # val2 inline tag description (env: APP_TSUB2_VAL)
   
 sub3:
-  name-tsub3: '' #  (env: APP_SUB3_NAME_TSUB3)
+  name-tsub3: '' # (env: APP_SUB3_NAME_TSUB3)
   
-  Val: 0 # sub3-val manual description (env: APP_SUB3_VAL)`, s)
+  Val: 0 # sub3-val manual description (env: APP_SUB3_VAL)
+  
+`, s)
 }
 
 func Test_SummarizeLocations(t *testing.T) {

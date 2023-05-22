@@ -87,30 +87,30 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 // configureViper loads the default configuration values into the viper instance,
 // before the config values are read and parsed. the value _must_ be a pointer but
 // may be a pointer to a pointer
-func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagRefs, path []string) {
-	typ := value.Type()
-	if !isPtr(typ) {
-		panic(fmt.Sprintf("configureViper value must be a pointer, got: %#v", value))
+func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRefs, path []string) {
+	t := v.Type()
+	if !isPtr(t) {
+		panic(fmt.Sprintf("configureViper v must be a pointer, got: %#v", v))
 	}
 
-	// value is always a pointer, addr within a struct
-	ptr := value.Pointer()
-	value = value.Elem()
-	typ = value.Type()
+	// v is always a pointer, secondarily it is an addr within a struct
+	ptr := v.Pointer()
+	v = v.Elem()
+	t = v.Type()
 
-	// might be a pointer value
-	if isPtr(typ) {
-		typ = typ.Elem()
-		value = value.Elem()
+	// might be a pointer v
+	if isPtr(t) {
+		t = t.Elem()
+		v = v.Elem()
 	}
 
-	if !isStruct(typ) {
+	if !isStruct(t) {
 		envVar := envVar(cfg.AppName, path)
 		path := strings.Join(path, ".")
 
 		if flag, ok := flags[ptr]; ok {
 			cfg.Logger.Tracef("binding env var w/flag: %s", envVar)
-			err := v.BindPFlag(path, flag)
+			err := vpr.BindPFlag(path, flag)
 			if err != nil {
 				cfg.Logger.Debugf("unable to bind flag: %s to %#v", path, flag)
 			}
@@ -119,17 +119,19 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 
 		cfg.Logger.Tracef("binding env var: %s", envVar)
 
-		v.SetDefault(path, nil) // no default value actually needs to be set for Viper to read config values
+		vpr.SetDefault(path, nil) // no default v actually needs to be set for Viper to read config values
 		return
 	}
 
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
-	for i := 0; i < value.NumField(); i++ {
-		fieldValue := value.Field(i)
-		field := typ.Field(i)
+	for i := 0; i < v.NumField(); i++ {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
 
 		path := path
-		if tag, ok := field.Tag.Lookup(cfg.TagName); ok {
+		if tag, ok := f.Tag.Lookup(cfg.TagName); ok {
 			// handle ,squash mapstructure tags
 			parts := strings.Split(tag, ",")
 			tag = parts[0]
@@ -140,15 +142,16 @@ func configureViper(cfg Config, v *viper.Viper, value reflect.Value, flags flagR
 			case contains(parts, "squash"):
 				// use the current path
 			case tag == "":
-				path = append(path, field.Name)
+				path = append(path, f.Name)
 			default:
 				path = append(path, tag)
 			}
 		} else {
-			path = append(path, field.Name)
+			path = append(path, f.Name)
 		}
 
-		configureViper(cfg, v, fieldValue.Addr(), flags, path)
+		v := v.Field(i)
+		configureViper(cfg, vpr, v.Addr(), flags, path)
 	}
 }
 
@@ -175,38 +178,37 @@ func readConfigFile(cfg Config, v *viper.Viper) error {
 
 func postLoad(obj any) error {
 	value := reflect.ValueOf(obj)
-	typ := value.Type()
-	if isPtr(typ) {
+	t := value.Type()
+	if isPtr(t) {
 		if p, ok := obj.(PostLoad); ok && !isPromotedMethod(obj, "PostLoad") {
-			// the field implements parser, call it
 			if err := p.PostLoad(); err != nil {
 				return err
 			}
 		}
 		value = value.Elem()
-		typ = value.Type()
+		t = value.Type()
 	}
 
-	if !isStruct(typ) {
+	if !isStruct(t) {
 		return nil
 	}
 
-	// parse nested config options
-	// for each field in the configuration struct, see if the field implements the parser interface
-	// note: the app config is a pointer, so we need to grab the elements explicitly (to traverse the address)
+	// call recursively on struct fields
 	for i := 0; i < value.NumField(); i++ {
-		f := value.Field(i)
-		ft := f.Type()
-		if isPtr(ft) {
-			f = f.Elem()
-			ft = f.Type()
-		}
-		if !f.CanAddr() || !isStruct(ft) {
+		f := t.Field(i)
+		if !f.IsExported() {
 			continue
 		}
-		// note: since the interface method of parser is a pointer receiver we need to get the value of the field as a pointer.
-		// the field implements parser, call it
-		if err := postLoad(f.Addr().Interface()); err != nil {
+		v := value.Field(i)
+		ft := v.Type()
+		if isPtr(ft) {
+			v = v.Elem()
+			ft = v.Type()
+		}
+		if !v.CanAddr() || !isStruct(ft) {
+			continue
+		}
+		if err := postLoad(v.Addr().Interface()); err != nil {
 			return err
 		}
 	}

@@ -34,6 +34,10 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 
 	if isStruct(t) {
 		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				continue
+			}
 			v := v.Field(i)
 			v = v.Addr()
 			if !v.CanInterface() {
