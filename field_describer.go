@@ -35,9 +35,9 @@ func NewDirectDescriber() FieldDescriptionSetProvider {
 	}
 }
 
-func NewStructDescriber(values ...any) DescriptionProvider {
+func NewFieldDescriber(cfgs ...any) DescriptionProvider {
 	d := NewDirectDescriber()
-	for _, v := range values {
+	for _, v := range cfgs {
 		addFieldDescriptions(d, v)
 	}
 	return d
@@ -46,7 +46,7 @@ func NewStructDescriber(values ...any) DescriptionProvider {
 func (d *directDescriber) Add(ptr any, description string) {
 	v := reflect.ValueOf(ptr)
 	if !isPtr(v.Type()) {
-		panic(fmt.Sprintf("Descriptions.Add requires a pointer, but got: %#v", ptr))
+		panic(fmt.Sprintf("Add() requires a pointer, but got: %#v", ptr))
 	}
 	p := v.Pointer()
 	d.flagRefs[p] = &pflag.Flag{
@@ -72,7 +72,6 @@ func addFieldDescriptions(d FieldDescriptionSet, o any) {
 	t := v.Type()
 	if isPtr(t) {
 		if p, ok := o.(FieldDescriber); ok && !isPromotedMethod(o, "DescribeFields") {
-			// the field implements parser, call it
 			p.DescribeFields(d)
 		}
 		v, t = base(v)
@@ -83,16 +82,19 @@ func addFieldDescriptions(d FieldDescriptionSet, o any) {
 	}
 
 	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-		ft := f.Type()
-		if isPtr(ft) {
-			f = f.Elem()
-			ft = f.Type()
-		}
-		if !f.CanAddr() || !isStruct(ft) {
+		f := t.Field(i)
+		if !f.IsExported() {
 			continue
 		}
-
-		addFieldDescriptions(d, f.Addr().Interface())
+		v := v.Field(i)
+		t := v.Type()
+		if isPtr(t) {
+			v = v.Elem()
+			t = t.Elem()
+		}
+		if !v.CanAddr() || !isStruct(t) {
+			continue
+		}
+		addFieldDescriptions(d, v.Addr().Interface())
 	}
 }

@@ -10,11 +10,11 @@ import (
 )
 
 type Config struct {
-	Logger  logger.Logger
-	AppName string
-	TagName string
-	File    string
-	Finders []Finder
+	Logger  logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
+	AppName string        `yaml:"-" json:"-" mapstructure:"-"`
+	TagName string        `yaml:"-" json:"-" mapstructure:"-"`
+	File    string        `yaml:"-" json:"-" mapstructure:"-"`
+	Finders []Finder      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 func NewConfig(appName string) Config {

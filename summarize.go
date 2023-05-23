@@ -7,15 +7,17 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/anchore/go-logger"
 )
 
 func Summarize(cfg Config, descriptions DescriptionProvider, values ...any) string {
-	out := ""
+	root := &section{}
 	for _, value := range values {
 		v := reflect.ValueOf(value)
-		out += summarize(cfg, descriptions, v, nil, "")
+		summarize(cfg, descriptions, root, v, nil)
 	}
-	return strings.TrimSpace(out)
+	return root.stringify()
 }
 
 func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
@@ -24,12 +26,11 @@ func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
 		root = root.Parent()
 	}
 	descriptions := DescriptionProviders(
-		NewStructDescriber(values...),
+		NewFieldDescriber(values...),
 		NewStructDescriptionTagProvider(),
-		NewCommandDescriber(cfg.TagName, root),
+		NewCommandFlagDescriptionProvider(cfg.TagName, root),
 	)
-	out := Summarize(cfg, descriptions, values...)
-	return strings.TrimSpace(out)
+	return Summarize(cfg, descriptions, values...)
 }
 
 func SummarizeLocations(cfg Config) (out []string) {
@@ -40,9 +41,7 @@ func SummarizeLocations(cfg Config) (out []string) {
 }
 
 //nolint:gocognit
-func summarize(cfg Config, descriptions DescriptionProvider, value reflect.Value, path []string, indent string) string {
-	out := bytes.Buffer{}
-
+func summarize(cfg Config, descriptions DescriptionProvider, s *section, value reflect.Value, path []string) {
 	v, t := base(value)
 
 	if !isStruct(t) {
@@ -50,12 +49,15 @@ func summarize(cfg Config, descriptions DescriptionProvider, value reflect.Value
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
 
 		path := path
-		name := field.Name
+		name := f.Name
 
-		if tag, ok := field.Tag.Lookup(cfg.TagName); ok {
+		if tag, ok := f.Tag.Lookup(cfg.TagName); ok {
 			parts := strings.Split(tag, ",")
 			tag = parts[0]
 			if tag == "-" {
@@ -74,31 +76,26 @@ func summarize(cfg Config, descriptions DescriptionProvider, value reflect.Value
 			path = append(path, name)
 		}
 
-		v, t := base(v.Field(i))
+		v := v.Field(i)
+		_, t := base(v)
 
-		var section string
 		if isStruct(t) {
-			if name == "" {
-				section = summarize(cfg, descriptions, v, path, indent)
-			} else {
-				section = fmt.Sprintf("%s:\n%s",
-					name,
-					summarize(cfg, descriptions, v, path, indent+"  "))
+			sub := s
+			if name != "" {
+				sub = s.sub(name)
 			}
+			if isPtr(v.Type()) && v.IsNil() {
+				v = reflect.New(t)
+			}
+			summarize(cfg, descriptions, sub, v, path)
 		} else {
-			envVar := envVar(cfg.AppName, path)
-
-			description := descriptions.GetDescription(v, field)
-
-			section = fmt.Sprintf("%s: %s # %s (env: %s)\n\n", name, printVal(v), description, envVar)
+			s.add(cfg.Logger,
+				name,
+				v,
+				descriptions.GetDescription(v, f),
+				envVar(cfg.AppName, path))
 		}
-
-		section = Indent(section, indent)
-
-		out.WriteString(section)
 	}
-
-	return out.String()
 }
 
 func printVal(value reflect.Value) string {
@@ -116,44 +113,107 @@ func printVal(value reflect.Value) string {
 }
 
 func base(v reflect.Value) (reflect.Value, reflect.Type) {
-	if isPtr(v.Type()) {
-		v = v.Elem()
-		return v, v.Type()
-	}
-	return v, v.Type()
-}
-
-type commandDescriber struct {
-	tag      string
-	flagRefs flagRefs
-}
-
-var _ DescriptionProvider = (*commandDescriber)(nil)
-
-func NewCommandDescriber(tagName string, cmd *cobra.Command) DescriptionProvider {
-	return &commandDescriber{
-		tag:      tagName,
-		flagRefs: collectFlagRefs(cmd),
-	}
-}
-
-func (d *commandDescriber) GetDescription(v reflect.Value, _ reflect.StructField) string {
-	if v.CanAddr() {
-		v = v.Addr()
-		f := d.flagRefs[v.Pointer()]
-		if f != nil {
-			return f.Usage
+	t := v.Type()
+	for isPtr(t) {
+		t = t.Elem()
+		if v.IsNil() {
+			v = reflect.New(t)
+		} else {
+			v = v.Elem()
 		}
 	}
-	return ""
+	return v, t
 }
 
-func collectFlagRefs(cmd *cobra.Command) flagRefs {
-	out := getFlagRefs(cmd.PersistentFlags(), cmd.Flags())
-	for _, c := range cmd.Commands() {
-		for k, v := range collectFlagRefs(c) {
-			out[k] = v
+type section struct {
+	name        string
+	value       reflect.Value
+	description string
+	env         string
+	subsections []*section
+}
+
+func (s *section) get(name string) *section {
+	for _, s := range s.subsections {
+		if s.name == name {
+			return s
 		}
 	}
-	return out
+	return nil
+}
+
+func (s *section) sub(name string) *section {
+	sub := s.get(name)
+	if sub == nil {
+		sub = &section{
+			name: name,
+		}
+		s.subsections = append(s.subsections, sub)
+	}
+	return sub
+}
+
+func (s *section) add(log logger.Logger, name string, value reflect.Value, description string, env string) *section {
+	add := &section{
+		name:        name,
+		value:       value,
+		description: description,
+		env:         env,
+	}
+	sub := s.get(name)
+	if sub != nil {
+		if sub.name != name || !sub.value.CanConvert(value.Type()) || sub.description != description || sub.env != env {
+			log.Warnf("multiple entries with different values: %#v != %#v", sub, add)
+		}
+		return sub
+	}
+	s.subsections = append(s.subsections, add)
+	return add
+}
+
+func (s *section) stringify() string {
+	out := &bytes.Buffer{}
+	stringifySection(out, s, "")
+	return out.String()
+}
+
+func stringifySection(out *bytes.Buffer, s *section, indent string) {
+	nextIndent := indent
+
+	if s.name != "" {
+		nextIndent = "  "
+
+		out.WriteString(indent)
+
+		out.WriteString(s.name)
+		out.WriteString(":")
+
+		if s.value.IsValid() {
+			out.WriteString(" ")
+			out.WriteString(printVal(s.value))
+		}
+
+		if s.description != "" || s.env != "" {
+			out.WriteString(" #")
+			if s.description != "" {
+				out.WriteString(" ")
+				out.WriteString(s.description)
+			}
+			if s.env != "" {
+				out.WriteString(" (env: ")
+				out.WriteString(s.env)
+				out.WriteString(")")
+			}
+		}
+
+		out.WriteString("\n")
+	}
+
+	for _, s := range s.subsections {
+		stringifySection(out, s, nextIndent)
+		if len(s.subsections) == 0 {
+			out.WriteString(nextIndent)
+			out.WriteString("\n")
+		}
+	}
 }
