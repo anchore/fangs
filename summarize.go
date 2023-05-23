@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/anchore/go-logger"
 )
 
 func Summarize(cfg Config, descriptions DescriptionProvider, values ...any) string {
@@ -74,16 +76,21 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 			path = append(path, name)
 		}
 
-		v, t := base(v.Field(i))
+		v := v.Field(i)
+		_, t := base(v)
 
 		if isStruct(t) {
 			sub := s
 			if name != "" {
 				sub = s.sub(name)
 			}
+			if isPtr(v.Type()) && v.IsNil() {
+				v = reflect.New(t)
+			}
 			summarize(cfg, descriptions, sub, v, path)
 		} else {
-			s.add(name,
+			s.add(cfg.Logger,
+				name,
 				v,
 				descriptions.GetDescription(v, f),
 				envVar(cfg.AppName, path))
@@ -106,11 +113,16 @@ func printVal(value reflect.Value) string {
 }
 
 func base(v reflect.Value) (reflect.Value, reflect.Type) {
-	if isPtr(v.Type()) {
-		v = v.Elem()
-		return v, v.Type()
+	t := v.Type()
+	for isPtr(t) {
+		t = t.Elem()
+		if v.IsNil() {
+			v = reflect.New(t)
+		} else {
+			v = v.Elem()
+		}
 	}
-	return v, v.Type()
+	return v, t
 }
 
 type section struct {
@@ -141,7 +153,7 @@ func (s *section) sub(name string) *section {
 	return sub
 }
 
-func (s *section) add(name string, value reflect.Value, description string, env string) *section {
+func (s *section) add(log logger.Logger, name string, value reflect.Value, description string, env string) *section {
 	add := &section{
 		name:        name,
 		value:       value,
@@ -150,8 +162,8 @@ func (s *section) add(name string, value reflect.Value, description string, env 
 	}
 	sub := s.get(name)
 	if sub != nil {
-		if sub.name != name || sub.value != value || sub.description != description || sub.env != env {
-			panic(fmt.Sprintf("multiple entries with different values: %#v != %#v", sub, add))
+		if sub.name != name || !sub.value.CanConvert(value.Type()) || sub.description != description || sub.env != env {
+			log.Warnf("multiple entries with different values: %#v != %#v", sub, add)
 		}
 		return sub
 	}

@@ -90,7 +90,7 @@ func addFieldDescriptions(d FieldDescriptionSet, o any) {
 		t := v.Type()
 		if isPtr(t) {
 			v = v.Elem()
-			t = v.Type()
+			t = t.Elem()
 		}
 		if !v.CanAddr() || !isStruct(t) {
 			continue
