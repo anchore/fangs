@@ -7,12 +7,15 @@ import (
 )
 
 func Test_fieldDescriber(t *testing.T) {
-	f1 := &fdTest1{}
+	f1 := &fdTest1{
+		Ptr: &fdTest3{},
+	}
 
 	d := NewFieldDescriber(f1)
 
 	require.Equal(t, 1, f1.called)
 	require.Equal(t, 1, f1.FdTest2.called)
+	require.Equal(t, 1, f1.Ptr.called)
 
 	dd := d.(*directDescriber)
 
@@ -23,12 +26,14 @@ func Test_fieldDescriber(t *testing.T) {
 
 	require.Contains(t, values, "string description")
 	require.Contains(t, values, "int description")
+	require.Contains(t, values, "fd test 3 value description")
 }
 
 type fdTest1 struct {
 	called  int
 	String  string
 	FdTest2 fdTest2
+	Ptr     *fdTest3
 }
 
 func (f *fdTest1) DescribeFields(d FieldDescriptionSet) {
@@ -49,3 +54,15 @@ func (f *fdTest2) DescribeFields(d FieldDescriptionSet) {
 }
 
 var _ FieldDescriber = &fdTest2{}
+
+type fdTest3 struct {
+	called int
+	Value  string
+}
+
+func (f *fdTest3) DescribeFields(d FieldDescriptionSet) {
+	f.called++
+	d.Add(&f.Value, "fd test 3 value description")
+}
+
+var _ FieldDescriber = &fdTest3{}

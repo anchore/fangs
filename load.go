@@ -75,7 +75,7 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		}
 
 		// Convert all populated config options to their internal application values ex: scope string => scopeOpt source.Scope
-		err = postLoad(configuration)
+		err = postLoad(reflect.ValueOf(configuration))
 		if err != nil {
 			return err
 		}
@@ -93,15 +93,17 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 		panic(fmt.Sprintf("configureViper v must be a pointer, got: %#v", v))
 	}
 
-	// v is always a pointer, secondarily it is an addr within a struct
+	// v is always a pointer
 	ptr := v.Pointer()
+	t = t.Elem()
 	v = v.Elem()
-	t = v.Type()
 
-	// might be a pointer v
-	if isPtr(t) {
+	// might be a pointer value
+	for isPtr(t) {
 		t = t.Elem()
-		v = v.Elem()
+		if !v.IsNil() {
+			v = v.Elem()
+		}
 	}
 
 	if !isStruct(t) {
@@ -119,7 +121,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 
 		cfg.Logger.Tracef("binding env var: %s", envVar)
 
-		vpr.SetDefault(path, nil) // no default v actually needs to be set for Viper to read config values
+		vpr.SetDefault(path, nil) // no default value actually needs to be set for Viper to read config values
 		return
 	}
 
@@ -176,17 +178,23 @@ func readConfigFile(cfg Config, v *viper.Viper) error {
 	return &viper.ConfigFileNotFoundError{}
 }
 
-func postLoad(obj any) error {
-	value := reflect.ValueOf(obj)
-	t := value.Type()
-	if isPtr(t) {
+func postLoad(v reflect.Value) error {
+	t := v.Type()
+
+	for isPtr(t) {
+		if v.IsNil() {
+			return nil
+		}
+
+		obj := v.Interface()
 		if p, ok := obj.(PostLoad); ok && !isPromotedMethod(obj, "PostLoad") {
 			if err := p.PostLoad(); err != nil {
 				return err
 			}
 		}
-		value = value.Elem()
-		t = value.Type()
+
+		t = t.Elem()
+		v = v.Elem()
 	}
 
 	if !isStruct(t) {
@@ -194,21 +202,23 @@ func postLoad(obj any) error {
 	}
 
 	// call recursively on struct fields
-	for i := 0; i < value.NumField(); i++ {
+	for i := 0; i < v.NumField(); i++ {
 		f := t.Field(i)
 		if !f.IsExported() {
 			continue
 		}
-		v := value.Field(i)
-		ft := v.Type()
-		if isPtr(ft) {
-			v = v.Elem()
-			ft = v.Type()
+
+		v := v.Field(i)
+		t := v.Type()
+		for isPtr(t) {
+			t = t.Elem()
 		}
-		if !v.CanAddr() || !isStruct(ft) {
+
+		if !v.CanAddr() || !isStruct(t) {
 			continue
 		}
-		if err := postLoad(v.Addr().Interface()); err != nil {
+
+		if err := postLoad(v.Addr()); err != nil {
 			return err
 		}
 	}

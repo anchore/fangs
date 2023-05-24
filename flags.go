@@ -39,7 +39,16 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 				continue
 			}
 			v := v.Field(i)
-			v = v.Addr()
+
+			if isPtr(v.Type()) {
+				if v.IsNil() {
+					newV := reflect.New(v.Type().Elem())
+					v.Set(newV)
+				}
+			} else {
+				v = v.Addr()
+			}
+
 			if !v.CanInterface() {
 				continue
 			}

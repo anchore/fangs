@@ -179,6 +179,74 @@ sub3:
 `, s)
 }
 
+type Summarize1 struct {
+	Name string
+	Val  int `yaml:"summarize1-val" description:"summarize1-val inline tag description"`
+}
+
+type Summarize2 struct {
+	Name string `yaml:"summarize2-name"`
+	Val  int
+}
+
+func (s *Summarize2) DescribeFields(d FieldDescriptionSet) {
+	d.Add(&s.Val, "val 2 description")
+}
+
+func (s *Summarize2) AddFlags(flags FlagSet) {
+	flags.StringVarP(&s.Name, "summarize2-name", "", "summarize2-name command description")
+}
+
+var _ FlagAdder = (*Summarize2)(nil)
+var _ FieldDescriber = (*Summarize2)(nil)
+
+func Test_SummarizeValuesWithPointers(t *testing.T) {
+	type T1 struct {
+		TopBool    bool
+		TopString  string
+		Summarize1 `yaml:",inline,squash"`
+		Pointer    *Summarize2 `yaml:"ptr"`
+		NilPointer *Summarize2 `yaml:"nil"`
+	}
+
+	cfg := NewConfig("my-app")
+	t1 := &T1{
+		Pointer: &Summarize2{
+			Name: "summarize2 name",
+			Val:  2,
+		},
+	}
+
+	cmd := &cobra.Command{}
+	subCmd := &cobra.Command{}
+	cmd.AddCommand(subCmd)
+
+	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
+	AddFlags(cfg.Logger, subCmd.Flags(), t1)
+
+	s := SummarizeCommand(cfg, subCmd, t1)
+
+	require.Equal(t, `TopBool: false # (env: MY_APP_TOPBOOL)
+
+TopString: '' # top-string command description (env: MY_APP_TOPSTRING)
+
+Name: '' # (env: MY_APP_NAME)
+
+summarize1-val: 0 # summarize1-val inline tag description (env: MY_APP_SUMMARIZE1_VAL)
+
+ptr:
+  summarize2-name: 'summarize2 name' # summarize2-name command description (env: MY_APP_PTR_SUMMARIZE2_NAME)
+  
+  Val: 2 # val 2 description (env: MY_APP_PTR_VAL)
+  
+nil:
+  summarize2-name: '' # (env: MY_APP_NIL_SUMMARIZE2_NAME)
+  
+  Val: 0 # val 2 description (env: MY_APP_NIL_VAL)
+  
+`, s)
+}
+
 func Test_SummarizeLocations(t *testing.T) {
 	t.Cleanup(func() {
 		xdg.Reload()
