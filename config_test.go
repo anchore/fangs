@@ -6,12 +6,16 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
+
+	"github.com/anchore/go-logger/adapter/discard"
 )
 
 func Test_Config(t *testing.T) {
 	c := NewConfig("appName")
 	cmd := cobra.Command{}
-	c.AddFlags(cmd.Flags())
+
+	fs := NewPFlagSet(discard.New(), cmd.Flags())
+	c.AddFlags(fs)
 
 	require.NotNil(t, c.Logger)
 	require.Equal(t, "appName", c.AppName)
