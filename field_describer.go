@@ -38,7 +38,7 @@ func NewDirectDescriber() FieldDescriptionSetProvider {
 func NewFieldDescriber(cfgs ...any) DescriptionProvider {
 	d := NewDirectDescriber()
 	for _, v := range cfgs {
-		addFieldDescriptions(d, v)
+		addFieldDescriptions(d, reflect.ValueOf(v))
 	}
 	return d
 }
@@ -67,14 +67,15 @@ func (d *directDescriber) GetDescription(v reflect.Value, _ reflect.StructField)
 	return ""
 }
 
-func addFieldDescriptions(d FieldDescriptionSet, o any) {
-	v := reflect.ValueOf(o)
+func addFieldDescriptions(d FieldDescriptionSet, v reflect.Value) {
 	t := v.Type()
-	if isPtr(t) {
+	for isPtr(t) {
+		o := v.Interface()
 		if p, ok := o.(FieldDescriber); ok && !isPromotedMethod(o, "DescribeFields") {
 			p.DescribeFields(d)
 		}
-		v, t = base(v)
+		t = t.Elem()
+		v = v.Elem()
 	}
 
 	if !isStruct(t) {
@@ -95,6 +96,6 @@ func addFieldDescriptions(d FieldDescriptionSet, o any) {
 		if !v.CanAddr() || !isStruct(t) {
 			continue
 		}
-		addFieldDescriptions(d, v.Addr().Interface())
+		addFieldDescriptions(d, v.Addr())
 	}
 }
