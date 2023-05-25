@@ -15,13 +15,13 @@ import (
 )
 
 type sub struct {
-	Sv      string `json:"sv" yaml:"sv"`
-	Unbound string `json:"unbound" yaml:"unbound"`
+	Sv      string `mapstructure:"sv"`
+	Unbound string `mapstructure:"unbound"`
 }
 
 type root struct {
-	V   string `json:"v" yaml:"v"`
-	Sub *sub   `json:"sub" yaml:"sub"`
+	V   string `mapstructure:"v"`
+	Sub *sub   `mapstructure:"sub"`
 }
 
 func Test_LoadDefaults(t *testing.T) {
@@ -56,8 +56,8 @@ func Test_LoadEmbeddedSquash(t *testing.T) {
 		Value string
 	}
 	type t1 struct {
-		Top `yaml:",inline,squash"`
-		Sub `yaml:"sub2"`
+		Top `mapstructure:",squash"`
+		Sub `mapstructure:"sub2"`
 	}
 
 	cfg := NewConfig("app")
@@ -227,7 +227,7 @@ func p[T any](t T) *T {
 
 func Test_flagBoolPtrValues(t *testing.T) {
 	type s struct {
-		Bool *bool `yaml:"bool"`
+		Bool *bool `mapstructure:"bool"`
 	}
 	a := &s{}
 
@@ -261,13 +261,13 @@ func Test_AllFieldTypes(t *testing.T) {
 	}
 
 	type all struct {
-		Bool        bool     `yaml:"bool"`
-		BoolPtr     *bool    `yaml:"bool-ptr"`
-		Int         int      `yaml:"int"`
-		IntPtr      *int     `yaml:"int-ptr"`
-		String      string   `yaml:"string"`
-		StringPtr   *string  `yaml:"string-ptr"`
-		StringArray []string `yaml:"string-array"`
+		Bool        bool     `mapstructure:"bool"`
+		BoolPtr     *bool    `mapstructure:"bool-ptr"`
+		Int         int      `mapstructure:"int"`
+		IntPtr      *int     `mapstructure:"int-ptr"`
+		String      string   `mapstructure:"string"`
+		StringPtr   *string  `mapstructure:"string-ptr"`
+		StringArray []string `mapstructure:"string-array"`
 	}
 
 	tests := []struct {
@@ -502,6 +502,33 @@ func Test_xdgHomeDir(t *testing.T) {
 	require.Equal(t, "xdg-home-config-v", r.V)
 }
 
+func Test_NilPointerFields(t *testing.T) {
+	cfg := NewConfig("my-app")
+
+	r := &rootPostLoad{}
+
+	cmd := &cobra.Command{}
+
+	err := Load(cfg, cmd, r)
+	require.NoError(t, err)
+
+	require.Nil(t, r.Bool)
+
+	t.Setenv("MY_APP_BOOL", "true")
+	t.Setenv("MY_APP_PTR_SV", "env-sv")
+
+	r = &rootPostLoad{}
+
+	err = Load(cfg, cmd, r)
+	require.NoError(t, err)
+
+	require.NotNil(t, r.Bool)
+	require.True(t, *r.Bool)
+
+	require.NotNil(t, r.Ptr)
+	require.Equal(t, "env-sv", r.Ptr.Sv)
+}
+
 func Test_PostLoad(t *testing.T) {
 	cfg := NewConfig("my-app")
 
@@ -529,10 +556,11 @@ func Test_PostLoad(t *testing.T) {
 }
 
 type rootPostLoad struct {
-	V   string `json:"v" yaml:"v"`
-	V2  string
-	Ptr *subPostLoad `json:"ptr" yaml:"ptr"`
-	Sub subPostLoad  `json:"sub" yaml:"sub"`
+	V    string `mapstructure:"v"`
+	V2   string
+	Bool *bool        `mapstructure:"bool"`
+	Ptr  *subPostLoad `mapstructure:"ptr"`
+	Sub  subPostLoad  `mapstructure:"sub"`
 }
 
 func (r *rootPostLoad) PostLoad() error {
@@ -543,9 +571,9 @@ func (r *rootPostLoad) PostLoad() error {
 var _ PostLoad = (*rootPostLoad)(nil)
 
 type subPostLoad struct {
-	Sv   string `json:"sv" yaml:"sv"`
+	Sv   string `mapstructure:"sv"`
 	Sv2  string
-	Sub2 subSubPostLoad `json:"sub2" yaml:"sub2"`
+	Sub2 subSubPostLoad `mapstructure:"sub2"`
 }
 
 func (s *subPostLoad) PostLoad() error {
@@ -556,9 +584,9 @@ func (s *subPostLoad) PostLoad() error {
 var _ PostLoad = (*subPostLoad)(nil)
 
 type subSubPostLoad struct {
-	Ssv  string `json:"ssv" yaml:"ssv"`
+	Ssv  string `mapstructure:"ssv"`
 	Ssv2 string
-	Sub3 subSubSubPostLoad `json:"sub3" yaml:"sub3"`
+	Sub3 subSubSubPostLoad `mapstructure:"sub3"`
 }
 
 func (s *subSubPostLoad) PostLoad() error {
@@ -569,7 +597,7 @@ func (s *subSubPostLoad) PostLoad() error {
 var _ PostLoad = (*subSubPostLoad)(nil)
 
 type subSubSubPostLoad struct {
-	Sssv  string `json:"sssv" yaml:"sssv"`
+	Sssv  string `mapstructure:"sssv"`
 	Sssv2 string
 }
 

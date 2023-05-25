@@ -21,7 +21,7 @@ func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) erro
 	config := reflect.StructOf([]reflect.StructField{{
 		Name: upperFirst(path),
 		Type: t,
-		Tag:  reflect.StructTag(fmt.Sprintf(`json:"%s" yaml:"%s" mapstructure:"%s"`, path, path, path)),
+		Tag:  reflect.StructTag(fmt.Sprintf(`%s:"%s"`, cfg.TagName, path)),
 	}})
 
 	value := reflect.New(config)
@@ -101,9 +101,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	// might be a pointer value
 	for isPtr(t) {
 		t = t.Elem()
-		if !v.IsNil() {
-			v = v.Elem()
-		}
+		v = v.Elem()
 	}
 
 	if !isStruct(t) {
@@ -126,7 +124,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	}
 
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
-	for i := 0; i < v.NumField(); i++ {
+	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		if !f.IsExported() {
 			continue
@@ -153,6 +151,16 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 		}
 
 		v := v.Field(i)
+
+		t := f.Type
+		if isPtr(t) && v.IsNil() {
+			t = t.Elem()
+			if isStruct(t) {
+				newV := reflect.New(t)
+				v.Set(newV)
+			}
+		}
+
 		configureViper(cfg, vpr, v.Addr(), flags, path)
 	}
 }

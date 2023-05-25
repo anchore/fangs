@@ -21,8 +21,8 @@ func Test_Summarize(t *testing.T) {
 	root.AddCommand(cmd)
 
 	type ty0 struct {
-		S0 summarize0 `yaml:",squash" mapstructure:",squash"`
-		S1 summarize1 `yaml:",squash" mapstructure:",squash"`
+		S0 summarize0 `mapstructure:",squash"`
+		S1 summarize1 `mapstructure:",squash"`
 	}
 
 	t0 := &ty0{
@@ -72,7 +72,7 @@ s2:
 type summarize0 struct {
 	Name0      string
 	Type0      string     `description:"type0 tag"`
-	S2         summarize2 `yaml:"s2-0"`
+	S2         summarize2 `mapstructure:"s2-0"`
 	unexported summarize2
 }
 
@@ -85,7 +85,7 @@ var _ FlagAdder = (*summarize0)(nil)
 type summarize1 struct {
 	Name string
 	Type string     `description:"type description"`
-	S2   summarize2 `yaml:"s2"`
+	S2   summarize2 `mapstructure:"s2"`
 }
 
 func (s *summarize1) DescribeFields(d FieldDescriptionSet) {
@@ -119,22 +119,22 @@ var _ FieldDescriber = (*summarize2)(nil)
 func Test_SummarizeValues(t *testing.T) {
 	type TSub1 struct {
 		Name string
-		Val  int `yaml:"val-tsub1" description:"val1 inline tag description"`
+		Val  int `mapstructure:"val-tsub1" description:"val1 inline tag description"`
 	}
 	type TSub2 struct {
-		Name string `yaml:"name-tsub2"`
+		Name string `mapstructure:"name-tsub2"`
 		Val  int    `description:"val2 inline tag description"`
 	}
 	type TSub3 struct {
-		Name string `yaml:"name-tsub3"`
+		Name string `mapstructure:"name-tsub3"`
 		Val  int
 	}
 	type T1 struct {
 		TopBool   bool
 		TopString string
-		TSub1     `yaml:",inline,squash"`
-		TSub2     `yaml:",inline"`
-		TSub3     `yaml:"sub3"`
+		TSub1     `mapstructure:",squash"`
+		TSub2     `mapstructure:""`
+		TSub3     `mapstructure:"sub3"`
 	}
 
 	cfg := NewConfig("app")
@@ -181,11 +181,11 @@ sub3:
 
 type Summarize1 struct {
 	Name string
-	Val  int `yaml:"summarize1-val" description:"summarize1-val inline tag description"`
+	Val  int `mapstructure:"summarize1-val" description:"summarize1-val inline tag description"`
 }
 
 type Summarize2 struct {
-	Name string `yaml:"summarize2-name"`
+	Name string `mapstructure:"summarize2-name"`
 	Val  int
 }
 
@@ -204,9 +204,9 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	type T1 struct {
 		TopBool    bool
 		TopString  string
-		Summarize1 `yaml:",inline,squash"`
-		Pointer    *Summarize2 `yaml:"ptr"`
-		NilPointer *Summarize2 `yaml:"nil"`
+		Summarize1 `mapstructure:",squash"`
+		Pointer    *Summarize2 `mapstructure:"ptr"`
+		NilPointer *Summarize2 `mapstructure:"nil"`
 	}
 
 	cfg := NewConfig("my-app")
