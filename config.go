@@ -3,19 +3,19 @@ package fangs
 import (
 	"fmt"
 
-	"github.com/spf13/pflag"
-
 	"github.com/anchore/go-logger"
 	"github.com/anchore/go-logger/adapter/discard"
 )
 
 type Config struct {
-	Logger  logger.Logger
-	AppName string
-	TagName string
-	File    string
-	Finders []Finder
+	Logger  logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
+	AppName string        `yaml:"-" json:"-" mapstructure:"-"`
+	TagName string        `yaml:"-" json:"-" mapstructure:"-"`
+	File    string        `yaml:"-" json:"-" mapstructure:"-"`
+	Finders []Finder      `yaml:"-" json:"-" mapstructure:"-"`
 }
+
+var _ FlagAdder = (*Config)(nil)
 
 func NewConfig(appName string) Config {
 	return Config{
@@ -38,6 +38,6 @@ func NewConfig(appName string) Config {
 	}
 }
 
-func (c *Config) AddFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&c.File, "config", "c", c.File, fmt.Sprintf("%s configuration file", c.AppName))
+func (c *Config) AddFlags(flags FlagSet) {
+	flags.StringVarP(&c.File, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
 }

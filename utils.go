@@ -6,24 +6,38 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"unicode"
 )
 
 func Indent(text, indent string) string {
-	if len(strings.TrimSpace(text)) == 0 {
-		return indent
+	if indent == "" {
+		return text
 	}
-	if text[len(text)-1:] == "\n" {
-		result := ""
-		for _, j := range strings.Split(text[:len(text)-1], "\n") {
-			result += indent + j + "\n"
+	sp := strings.Split(text, "\n")
+	l := len(sp)
+	if l == 0 {
+		return ""
+	}
+	if l == 1 {
+		return indent + sp[0]
+	}
+	for i := 0; i < l; i++ {
+		// don't add indent for last whitespace-only element
+		if i == l-1 && isWhitespace(sp[i]) {
+			continue
 		}
-		return result
+		sp[i] = indent + sp[i]
 	}
-	result := ""
-	for _, j := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
-		result += indent + j + "\n"
+	return strings.Join(sp, "\n")
+}
+
+func isWhitespace(s string) bool {
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			return false
+		}
 	}
-	return result[:len(result)-1]
+	return true
 }
 
 func contains(parts []string, value string) bool {

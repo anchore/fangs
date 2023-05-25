@@ -511,6 +511,9 @@ func Test_PostLoad(t *testing.T) {
 
 	r := &rootPostLoad{
 		V: "default-v",
+		Ptr: &subPostLoad{
+			Sv: "ptr-v",
+		},
 	}
 
 	cmd := &cobra.Command{}
@@ -522,12 +525,14 @@ func Test_PostLoad(t *testing.T) {
 	require.Equal(t, "direct-config-sub-v", r.Sub.Sv2)
 	require.Equal(t, "direct-config-sub-sub-v", r.Sub.Sub2.Ssv2)
 	require.Equal(t, "direct-config-sub-sub-sub-v", r.Sub.Sub2.Sub3.Sssv2)
+	require.Equal(t, "ptr-v", r.Ptr.Sv2)
 }
 
 type rootPostLoad struct {
 	V   string `json:"v" yaml:"v"`
 	V2  string
-	Sub subPostLoad `json:"sub" yaml:"sub"`
+	Ptr *subPostLoad `json:"ptr" yaml:"ptr"`
+	Sub subPostLoad  `json:"sub" yaml:"sub"`
 }
 
 func (r *rootPostLoad) PostLoad() error {
