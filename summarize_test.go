@@ -139,12 +139,17 @@ func Test_SummarizeValues(t *testing.T) {
 		Name string `mapstructure:"name-tsub3"`
 		Val  int
 	}
+	type TSub4 struct {
+		TSub1
+		Sub2 TSub2
+	}
 	type T1 struct {
 		TopBool   bool
 		TopString string
 		TSub1     `mapstructure:",squash"`
 		TSub2     `mapstructure:""`
 		TSub3     `mapstructure:"sub3"`
+		TSub4     `mapstructure:"sub4"`
 	}
 
 	cfg := NewConfig("app")
@@ -194,6 +199,21 @@ sub3:
   # sub3-val manual description (env: APP_SUB3_VAL)
   Val: 0
   
+sub4:
+  TSub1:
+    # (env: APP_SUB4_TSUB1_NAME)
+    Name: ''
+    
+    # val1 inline tag description (env: APP_SUB4_TSUB1_VAL_TSUB1)
+    val-tsub1: 0
+    
+  Sub2:
+    # (env: APP_SUB4_SUB2_NAME_TSUB2)
+    name-tsub2: ''
+    
+    # val2 inline tag description (env: APP_SUB4_SUB2_VAL)
+    Val: 0
+    
 `, s)
 }
 

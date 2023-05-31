@@ -181,7 +181,7 @@ func stringifySection(out *bytes.Buffer, s *section, indent string) {
 	nextIndent := indent
 
 	if s.name != "" {
-		nextIndent = "  "
+		nextIndent += "  "
 
 		if s.description != "" {
 			// support multi-line descriptions
