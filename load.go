@@ -195,7 +195,7 @@ func postLoad(v reflect.Value) error {
 		}
 
 		obj := v.Interface()
-		if p, ok := obj.(PostLoad); ok && !isPromotedMethod(obj, "PostLoad") {
+		if p, ok := obj.(PostLoader); ok && !isPromotedMethod(obj, "PostLoad") {
 			if err := p.PostLoad(); err != nil {
 				return err
 			}

@@ -568,7 +568,7 @@ func (r *rootPostLoad) PostLoad() error {
 	return nil
 }
 
-var _ PostLoad = (*rootPostLoad)(nil)
+var _ PostLoader = (*rootPostLoad)(nil)
 
 type subPostLoad struct {
 	Sv   string `mapstructure:"sv"`
@@ -581,7 +581,7 @@ func (s *subPostLoad) PostLoad() error {
 	return nil
 }
 
-var _ PostLoad = (*subPostLoad)(nil)
+var _ PostLoader = (*subPostLoad)(nil)
 
 type subSubPostLoad struct {
 	Ssv  string `mapstructure:"ssv"`
@@ -594,7 +594,7 @@ func (s *subSubPostLoad) PostLoad() error {
 	return nil
 }
 
-var _ PostLoad = (*subSubPostLoad)(nil)
+var _ PostLoader = (*subSubPostLoad)(nil)
 
 type subSubSubPostLoad struct {
 	Sssv  string `mapstructure:"sssv"`
@@ -606,4 +606,4 @@ func (s *subSubSubPostLoad) PostLoad() error {
 	return nil
 }
 
-var _ PostLoad = (*subSubSubPostLoad)(nil)
+var _ PostLoader = (*subSubSubPostLoad)(nil)
