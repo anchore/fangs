@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/adrg/xdg v0.4.0
-	github.com/anchore/go-logger v0.0.0-20230120230012-47be9bb822a2
+	github.com/anchore/go-logger v0.0.0-20230531193951-db5ae83e7dbe
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.7.0

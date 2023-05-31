@@ -6,39 +6,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"unicode"
 )
-
-func Indent(text, indent string) string {
-	if indent == "" {
-		return text
-	}
-	sp := strings.Split(text, "\n")
-	l := len(sp)
-	if l == 0 {
-		return ""
-	}
-	if l == 1 {
-		return indent + sp[0]
-	}
-	for i := 0; i < l; i++ {
-		// don't add indent for last whitespace-only element
-		if i == l-1 && isWhitespace(sp[i]) {
-			continue
-		}
-		sp[i] = indent + sp[i]
-	}
-	return strings.Join(sp, "\n")
-}
-
-func isWhitespace(s string) bool {
-	for _, r := range s {
-		if !unicode.IsSpace(r) {
-			return false
-		}
-	}
-	return true
-}
 
 func contains(parts []string, value string) bool {
 	for _, v := range parts {

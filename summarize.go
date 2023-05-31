@@ -181,7 +181,32 @@ func stringifySection(out *bytes.Buffer, s *section, indent string) {
 	nextIndent := indent
 
 	if s.name != "" {
-		nextIndent = "  "
+		nextIndent += "  "
+
+		if s.description != "" {
+			// support multi-line descriptions
+			lines := strings.Split(strings.TrimSpace(s.description), "\n")
+			for idx, line := range lines {
+				out.WriteString(indent + "# " + line)
+				if idx < len(lines)-1 {
+					out.WriteString("\n")
+				}
+			}
+		}
+		if s.env != "" {
+			value := fmt.Sprintf("(env: %s)", s.env)
+			if s.description == "" {
+				// since there is no description, we need to start the comment
+				out.WriteString(indent + "# ")
+			} else {
+				// buffer between description and env hint
+				out.WriteString(" ")
+			}
+			out.WriteString(value)
+		}
+		if s.description != "" || s.env != "" {
+			out.WriteString("\n")
+		}
 
 		out.WriteString(indent)
 
@@ -191,19 +216,6 @@ func stringifySection(out *bytes.Buffer, s *section, indent string) {
 		if s.value.IsValid() {
 			out.WriteString(" ")
 			out.WriteString(printVal(s.value))
-		}
-
-		if s.description != "" || s.env != "" {
-			out.WriteString(" #")
-			if s.description != "" {
-				out.WriteString(" ")
-				out.WriteString(s.description)
-			}
-			if s.env != "" {
-				out.WriteString(" (env: ")
-				out.WriteString(s.env)
-				out.WriteString(")")
-			}
 		}
 
 		out.WriteString("\n")

@@ -20,7 +20,7 @@ TITLE := $(BOLD)$(PURPLE)
 SUCCESS := $(BOLD)$(GREEN)
 
 # Test variables #################################
-COVERAGE_THRESHOLD := 75  # the quality gate lower threshold for unit test total % coverage (by function statements)
+COVERAGE_THRESHOLD := 80  # the quality gate lower threshold for unit test total % coverage (by function statements)
 
 ## Build variables #################################
 VERSION := $(shell git describe --dirty --always --tags)
