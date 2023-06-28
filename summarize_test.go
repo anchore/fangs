@@ -238,13 +238,29 @@ func (s *Summarize2) AddFlags(flags FlagSet) {
 var _ FlagAdder = (*Summarize2)(nil)
 var _ FieldDescriber = (*Summarize2)(nil)
 
+type Summarize3 struct {
+	Name string `mapstructure:"summarize3-name"`
+	Val  int
+}
+
+func (s *Summarize3) DescribeFields(d FieldDescriptionSet) {
+	d.Add(&s.Val, "val 2 description")
+}
+
+func (s *Summarize3) AddFlags(flags FlagSet) {
+	flags.StringVarP(&s.Name, "summarize3-name", "", "summarize3-name command description")
+}
+
+var _ FlagAdder = (*Summarize3)(nil)
+var _ FieldDescriber = (*Summarize3)(nil)
+
 func Test_SummarizeValuesWithPointers(t *testing.T) {
 	type T1 struct {
 		TopBool    bool
 		TopString  string
 		Summarize1 `mapstructure:",squash"`
 		Pointer    *Summarize2 `mapstructure:"ptr"`
-		NilPointer *Summarize2 `mapstructure:"nil"`
+		NilPointer *Summarize3 `mapstructure:"nil"`
 	}
 
 	cfg := NewConfig("my-app")
@@ -284,8 +300,8 @@ ptr:
   Val: 2
   
 nil:
-  # (env: MY_APP_NIL_SUMMARIZE2_NAME)
-  summarize2-name: ''
+  # summarize3-name command description (env: MY_APP_NIL_SUMMARIZE3_NAME)
+  summarize3-name: ''
   
   # val 2 description (env: MY_APP_NIL_VAL)
   Val: 0

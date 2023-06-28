@@ -58,14 +58,19 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 	}
 }
 
-func invokeAddFlags(log logger.Logger, flags FlagSet, o any) {
-	defer func() {
-		// we need to handle embedded structs having AddFlags methods called,
-		// potentially adding flags with existing names
-		if err := recover(); err != nil {
-			log.Debugf("got error while invoking AddFlags: %#v", err)
-		}
-	}()
+func invokeAddFlags(_ logger.Logger, flags FlagSet, o any) {
+	// defer func() {
+	//	// we may need to handle embedded structs having AddFlags methods called,
+	//	// potentially adding flags with existing names. currently the isPromotedMethod
+	//  // function works, but it is fairly brittle as there is no way through standard
+	//  // go reflection to ascertain this information
+	//	if err := recover(); err != nil {
+	//		if log == nil {
+	//			panic(err)
+	//		}
+	//		log.Debugf("got error while invoking AddFlags: %v", err)
+	//	}
+	// }()
 
 	if o, ok := o.(FlagAdder); ok && !isPromotedMethod(o, "AddFlags") {
 		o.AddFlags(flags)
