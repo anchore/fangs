@@ -69,6 +69,8 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		// unmarshal fully populated viper object onto config
 		err := v.Unmarshal(configuration, func(dc *mapstructure.DecoderConfig) {
 			dc.TagName = cfg.TagName
+			// ZeroFields will use what is present in the config file instead of modifying existing defaults
+			dc.ZeroFields = true
 		})
 		if err != nil {
 			return err

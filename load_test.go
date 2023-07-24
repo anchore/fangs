@@ -252,6 +252,35 @@ func Test_flagBoolPtrValues(t *testing.T) {
 	require.Equal(t, true, *a.Bool)
 }
 
+func Test_zeroFields(t *testing.T) {
+	type s struct {
+		List []string `mapstructure:"list"`
+	}
+	a := &s{
+		List: []string{
+			"default1",
+			"default2",
+			"default3",
+		},
+	}
+
+	cmd := &cobra.Command{}
+
+	cfg := NewConfig("app")
+	err := Load(cfg, cmd, a)
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"default1", "default2", "default3"}, a.List)
+
+	t.Setenv("APP_LIST", "set1,set2")
+
+	cfg = NewConfig("app")
+	err = Load(cfg, cmd, a)
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"set1", "set2"}, a.List)
+}
+
 func Test_AllFieldTypes(t *testing.T) {
 	appName := "app"
 	envName := func(name string) string {
