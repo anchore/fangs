@@ -255,12 +255,18 @@ var _ FlagAdder = (*Summarize3)(nil)
 var _ FieldDescriber = (*Summarize3)(nil)
 
 func Test_SummarizeValuesWithPointers(t *testing.T) {
+	type Sub struct {
+		SubValue string
+		IntSlice []int
+	}
 	type T1 struct {
-		TopBool    bool
-		TopString  string
-		Summarize1 `mapstructure:",squash"`
-		Pointer    *Summarize2 `mapstructure:"ptr"`
-		NilPointer *Summarize3 `mapstructure:"nil"`
+		TopBool     bool
+		TopString   string
+		Summarize1  `mapstructure:",squash"`
+		Pointer     *Summarize2 `mapstructure:"ptr"`
+		NilPointer  *Summarize3 `mapstructure:"nil"`
+		StringSlice []string
+		SubSlice    []Sub
 	}
 
 	cfg := NewConfig("my-app")
@@ -268,6 +274,19 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 		Pointer: &Summarize2{
 			Name: "summarize2 name",
 			Val:  2,
+		},
+		StringSlice: []string{
+			"s1",
+			"s2",
+		},
+		SubSlice: []Sub{
+			{
+				SubValue: "sv1",
+			},
+			{
+				SubValue: "sv2",
+				IntSlice: []int{3, 2, 1},
+			},
 		},
 	}
 
@@ -306,6 +325,22 @@ nil:
   # val 2 description (env: MY_APP_NIL_VAL)
   Val: 0
   
+# (env: MY_APP_STRINGSLICE)
+StringSlice: 
+  - 's1'
+  - 's2'
+
+# (env: MY_APP_SUBSLICE)
+SubSlice: 
+  - SubValue: 'sv1'
+    IntSlice: []
+
+  - SubValue: 'sv2'
+    IntSlice: 
+      - 3
+      - 2
+      - 1
+
 `, s)
 }
 

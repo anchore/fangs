@@ -284,6 +284,10 @@ func isStruct(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Struct
 }
 
+func isSlice(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Slice
+}
+
 func isNotFoundErr(err error) bool {
 	var notFound *viper.ConfigFileNotFoundError
 	return err != nil && errors.As(err, &notFound)
