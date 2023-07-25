@@ -17,7 +17,7 @@ func Summarize(cfg Config, descriptions DescriptionProvider, values ...any) stri
 		v := reflect.ValueOf(value)
 		summarize(cfg, descriptions, root, v, nil)
 	}
-	return root.stringify()
+	return root.stringify(cfg)
 }
 
 func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
@@ -98,9 +98,71 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 	}
 }
 
-func printVal(value reflect.Value) string {
-	v, _ := base(value)
-	if v.CanInterface() {
+// printVal prints a value in YAML format
+func printVal(cfg Config, value reflect.Value, indent string) string {
+	buf := bytes.Buffer{}
+
+	v, t := base(value)
+	switch {
+	case isSlice(t):
+		if v.Len() == 0 {
+			return "[]"
+		}
+
+		for i := 0; i < v.Len(); i++ {
+			v := v.Index(i)
+			buf.WriteString("\n")
+			buf.WriteString(indent)
+			buf.WriteString("- ")
+
+			val := printVal(cfg, v, indent+"  ")
+			val = strings.TrimSpace(val)
+			buf.WriteString(val)
+
+			// separate struct entries by an empty line
+			_, t := base(v)
+			if isStruct(t) {
+				buf.WriteString("\n")
+			}
+		}
+
+	case isStruct(t):
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				continue
+			}
+
+			name := f.Name
+
+			if tag, ok := f.Tag.Lookup(cfg.TagName); ok {
+				parts := strings.Split(tag, ",")
+				tag = parts[0]
+				if tag == "-" {
+					continue
+				}
+				switch {
+				case contains(parts, "squash"):
+					name = ""
+				case tag == "":
+				default:
+					name = tag
+				}
+			}
+
+			v := v.Field(i)
+
+			buf.WriteString("\n")
+			buf.WriteString(indent)
+
+			val := printVal(cfg, v, indent+"  ")
+
+			val = fmt.Sprintf("%s: %s", name, val)
+
+			buf.WriteString(val)
+		}
+
+	case v.CanInterface():
 		v := v.Interface()
 		switch v.(type) {
 		case string:
@@ -109,7 +171,11 @@ func printVal(value reflect.Value) string {
 			return fmt.Sprintf("%v", v)
 		}
 	}
-	return ""
+
+	val := buf.String()
+	// for slices, there will be an extra newline, which we want to remove
+	val = strings.TrimSuffix(val, "\n")
+	return val
 }
 
 func base(v reflect.Value) (reflect.Value, reflect.Type) {
@@ -171,13 +237,13 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 	return add
 }
 
-func (s *section) stringify() string {
+func (s *section) stringify(cfg Config) string {
 	out := &bytes.Buffer{}
-	stringifySection(out, s, "")
+	stringifySection(cfg, out, s, "")
 	return out.String()
 }
 
-func stringifySection(out *bytes.Buffer, s *section, indent string) {
+func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) {
 	nextIndent := indent
 
 	if s.name != "" {
@@ -215,14 +281,15 @@ func stringifySection(out *bytes.Buffer, s *section, indent string) {
 
 		if s.value.IsValid() {
 			out.WriteString(" ")
-			out.WriteString(printVal(s.value))
+			val := printVal(cfg, s.value, indent+"  ")
+			out.WriteString(val)
 		}
 
 		out.WriteString("\n")
 	}
 
 	for _, s := range s.subsections {
-		stringifySection(out, s, nextIndent)
+		stringifySection(cfg, out, s, nextIndent)
 		if len(s.subsections) == 0 {
 			out.WriteString(nextIndent)
 			out.WriteString("\n")
