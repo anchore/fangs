@@ -107,7 +107,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	}
 
 	if !isStruct(t) {
-		envVar := envVar(cfg.AppName, path)
+		envVar := envVar(cfg.AppName, path...)
 		path := strings.Join(path, ".")
 
 		if flag, ok := flags[ptr]; ok {

@@ -10,7 +10,7 @@ import (
 	"github.com/anchore/go-logger/adapter/discard"
 )
 
-func Test_Config(t *testing.T) {
+func Test_BasicConfig(t *testing.T) {
 	c := NewConfig("appName")
 	cmd := cobra.Command{}
 
@@ -26,4 +26,21 @@ func Test_Config(t *testing.T) {
 	})
 
 	require.Contains(t, flags, "config")
+}
+
+func Test_EnvVarConfig(t *testing.T) {
+	t.Setenv("APPNAME_CONFIG", "some/config.env")
+
+	c := NewConfig("appName")
+	require.Equal(t, c.File, "some/config.env")
+
+	cmd := cobra.Command{}
+
+	fs := NewPFlagSet(discard.New(), cmd.Flags())
+	c.AddFlags(fs)
+
+	// simulate the flag set
+	err := cmd.Flags().Set("config", "a/config.flag")
+	require.NoError(t, err)
+	require.Equal(t, c.File, "a/config.flag")
 }
