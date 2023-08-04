@@ -4,10 +4,18 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-logger/adapter/discard"
 )
+
+func Test_PFlagSetProvider(t *testing.T) {
+	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
+	flagSet := NewPFlagSet(discard.New(), flags)
+	prov, ok := flagSet.(PFlagSetProvider)
+	require.True(t, ok)
+	require.Equal(t, flags, prov.PFlagSet())
+}
 
 func Test_EmbeddedAddFlags(t *testing.T) {
 	type ty1 struct {
@@ -25,7 +33,7 @@ func Test_EmbeddedAddFlags(t *testing.T) {
 		flagNames = append(flagNames, flag.Name)
 	})
 
-	assert.Equal(t, flagNames, []string{"sub2-flag"})
+	require.Equal(t, flagNames, []string{"sub2-flag"})
 }
 
 func Test_AddFlags(t *testing.T) {
@@ -38,10 +46,10 @@ func Test_AddFlags(t *testing.T) {
 		flagNames = append(flagNames, flag.Name)
 	})
 
-	assert.Len(t, flagNames, 3)
-	assert.Contains(t, flagNames, "t1-flag")
-	assert.Contains(t, flagNames, "sub2-flag")
-	assert.Contains(t, flagNames, "sub3-flag")
+	require.Len(t, flagNames, 3)
+	require.Contains(t, flagNames, "t1-flag")
+	require.Contains(t, flagNames, "sub2-flag")
+	require.Contains(t, flagNames, "sub3-flag")
 }
 
 type Sub2 struct {

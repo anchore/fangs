@@ -20,13 +20,20 @@ type FlagSet interface {
 	StringArrayVarP(p *[]string, name, shorthand, usage string)
 }
 
+type PFlagSetProvider interface {
+	PFlagSet() *pflag.FlagSet
+}
+
 type pflagSet struct {
 	ignoreDuplicates bool
 	log              logger.Logger
 	flagSet          *pflag.FlagSet
 }
 
-var _ FlagSet = (*pflagSet)(nil)
+var _ interface {
+	FlagSet
+	PFlagSetProvider
+} = (*pflagSet)(nil)
 
 func NewPFlagSet(log logger.Logger, flags *pflag.FlagSet) FlagSet {
 	return &pflagSet{
@@ -34,6 +41,10 @@ func NewPFlagSet(log logger.Logger, flags *pflag.FlagSet) FlagSet {
 		log:              log,
 		flagSet:          flags,
 	}
+}
+
+func (f *pflagSet) PFlagSet() *pflag.FlagSet {
+	return f.flagSet
 }
 
 func (f *pflagSet) exists(name, shorthand string) bool {
