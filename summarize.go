@@ -93,7 +93,7 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 				name,
 				v,
 				descriptions.GetDescription(v, f),
-				envVar(cfg.AppName, path))
+				envVar(cfg.AppName, path...))
 		}
 	}
 }

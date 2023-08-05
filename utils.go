@@ -19,7 +19,7 @@ func contains(parts []string, value string) bool {
 
 var envVarRegex = regexp.MustCompile("[^a-zA-Z0-9_]")
 
-func envVar(appName string, parts []string) string {
+func envVar(appName string, parts ...string) string {
 	v := strings.Join(parts, "_")
 	if appName != "" {
 		v = appName + "_" + v
