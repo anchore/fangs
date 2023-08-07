@@ -18,6 +18,7 @@ type Config struct {
 
 var _ FlagAdder = (*Config)(nil)
 
+// NewConfig creates a new Config object with defaults
 func NewConfig(appName string) Config {
 	return Config{
 		Logger:  discard.New(),
@@ -39,9 +40,9 @@ func NewConfig(appName string) Config {
 	}
 }
 
+// WithConfigEnvVar looks for the environment variable: <APP_NAME>_CONFIG as a way to specify a config file
+// This will be overridden by a command-line flag
 func (c Config) WithConfigEnvVar() Config {
-	// check for environment variable <app_name>_CONFIG, if set this will be the default
-	// but will be overridden by a command-line flag
 	c.File = os.Getenv(envVar(c.AppName, "CONFIG"))
 	return c
 }
