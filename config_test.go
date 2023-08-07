@@ -31,7 +31,7 @@ func Test_BasicConfig(t *testing.T) {
 func Test_EnvVarConfig(t *testing.T) {
 	t.Setenv("APPNAME_CONFIG", "some/config.env")
 
-	c := NewConfig("appName")
+	c := NewConfig("appName").WithConfigEnvVar()
 	require.Equal(t, c.File, "some/config.env")
 
 	cmd := cobra.Command{}
