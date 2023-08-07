@@ -21,7 +21,9 @@ type FlagSet interface {
 }
 
 // PFlagSetProvider provides access to the underlying pflag.FlagSet; the FlagSet may be type asserted to this interface
-// WARNING: do not use this unless you know what you are doing!
+//
+// WARNING: only use this when the fangs API does not provide a necessary feature, such as marking a flag as deprecated.
+// Using the pflag.FlagSet directly may result in a mismatch between flags and configuration.
 type PFlagSetProvider interface {
 	PFlagSet() *pflag.FlagSet
 }
