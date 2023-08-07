@@ -18,16 +18,12 @@ type Config struct {
 
 var _ FlagAdder = (*Config)(nil)
 
+// NewConfig creates a new Config object with defaults
 func NewConfig(appName string) Config {
-	// check for environment variable <app_name>_CONFIG, if set this will be the default
-	// but will be overridden by a command-line flag
-	configFile := os.Getenv(envVar(appName, "CONFIG"))
-
 	return Config{
 		Logger:  discard.New(),
 		AppName: appName,
 		TagName: "mapstructure",
-		File:    configFile,
 		// search for configs in specific order
 		Finders: []Finder{
 			// 1. look for a directly configured file
@@ -42,6 +38,13 @@ func NewConfig(appName string) Config {
 			FindInXDG,
 		},
 	}
+}
+
+// WithConfigEnvVar looks for the environment variable: <APP_NAME>_CONFIG as a way to specify a config file
+// This will be overridden by a command-line flag
+func (c Config) WithConfigEnvVar() Config {
+	c.File = os.Getenv(envVar(c.AppName, "CONFIG"))
+	return c
 }
 
 func (c *Config) AddFlags(flags FlagSet) {

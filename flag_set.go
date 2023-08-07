@@ -6,9 +6,9 @@ import (
 	"github.com/anchore/go-logger"
 )
 
-// FlagSet defines effectively a subset of the methods exposed by pflag.FieldSet, as fangs requires all flag
-// add calls to use field references in order to match reading configuration and summarization information. The
-// methods do not take default values, however, which should be set on the struct directly.
+// FlagSet is a facade of pflag.FlagSet, as fangs requires all flag add calls to use field references
+// in order to match reading configuration and summarization information.
+// The methods do not take default values, however, which should be set on the struct directly.
 // There is one additional method: BoolPtrVarP, which allows for adding flags for bool pointers, needed by some
 // multi-level configurations.
 type FlagSet interface {
@@ -20,6 +20,10 @@ type FlagSet interface {
 	StringArrayVarP(p *[]string, name, shorthand, usage string)
 }
 
+// PFlagSetProvider provides access to the underlying pflag.FlagSet; the FlagSet may be type asserted to this interface
+//
+// WARNING: only use this when the fangs API does not provide a necessary feature, such as marking a flag as deprecated.
+// Using the pflag.FlagSet directly may result in a mismatch between flags and configuration.
 type PFlagSetProvider interface {
 	PFlagSet() *pflag.FlagSet
 }
