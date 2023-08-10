@@ -636,3 +636,135 @@ func (s *subSubSubPostLoad) PostLoad() error {
 }
 
 var _ PostLoader = (*subSubSubPostLoad)(nil)
+
+func Test_postLoadSlices(t *testing.T) {
+	type typ struct {
+		Items       []item
+		ItemPtrs    []*item
+		PtrItems    *[]item
+		PtrItemPtrs *[]*item
+	}
+
+	type top struct {
+		Sub typ
+	}
+
+	v := top{
+		Sub: typ{
+			Items: []item{
+				{V: "1"},
+				{V: "2"},
+			},
+			ItemPtrs: []*item{
+				{V: "1"},
+				{V: "2"},
+			},
+			PtrItems: &[]item{
+				{V: "1"},
+				{V: "2"},
+			},
+			PtrItemPtrs: &[]*item{
+				{V: "1"},
+				{V: "2"},
+			},
+		},
+	}
+
+	err := Load(NewConfig("app"), &cobra.Command{}, &v)
+	require.NoError(t, err)
+
+	tested := 0
+	for _, i := range v.Sub.Items {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "Items")
+		assert.Equalf(t, i.V, i.loadedValue, "Items")
+	}
+	for _, i := range v.Sub.ItemPtrs {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "ItemPtrs")
+		assert.Equalf(t, i.V, i.loadedValue, "ItemPtrs")
+	}
+	for _, i := range *v.Sub.PtrItems {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "PtrItems")
+		assert.Equalf(t, i.V, i.loadedValue, "PtrItems")
+	}
+	for _, i := range *v.Sub.PtrItemPtrs {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "PtrItemPtrs")
+		assert.Equalf(t, i.V, i.loadedValue, "PtrItemPtrs")
+	}
+	require.Equal(t, 8, tested)
+}
+
+func Test_postLoadMaps(t *testing.T) {
+	type typ struct {
+		Items       map[int]item
+		ItemPtrs    map[int]*item
+		PtrItems    *map[int]item
+		PtrItemPtrs *map[int]*item
+	}
+
+	type top struct {
+		Sub typ
+	}
+
+	v := top{
+		Sub: typ{
+			Items: map[int]item{
+				1: {V: "1"},
+				2: {V: "2"},
+			},
+			ItemPtrs: map[int]*item{
+				1: {V: "1"},
+				2: {V: "2"},
+			},
+			PtrItems: &map[int]item{
+				1: {V: "1"},
+				2: {V: "2"},
+			},
+			PtrItemPtrs: &map[int]*item{
+				1: {V: "1"},
+				2: {V: "2"},
+			},
+		},
+	}
+
+	err := Load(NewConfig("app"), &cobra.Command{}, &v)
+	require.NoError(t, err)
+
+	tested := 0
+	for _, i := range v.Sub.Items {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "Items")
+		assert.Equalf(t, i.V, i.loadedValue, "Items")
+	}
+	for _, i := range v.Sub.ItemPtrs {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "ItemPtrs")
+		assert.Equalf(t, i.V, i.loadedValue, "ItemPtrs")
+	}
+	for _, i := range *v.Sub.PtrItems {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "PtrItems")
+		assert.Equalf(t, i.V, i.loadedValue, "PtrItems")
+	}
+	for _, i := range *v.Sub.PtrItemPtrs {
+		tested++
+		assert.NotEmpty(t, i.loadedValue, "PtrItemPtrs")
+		assert.Equalf(t, i.V, i.loadedValue, "PtrItemPtrs")
+	}
+	require.Equal(t, 8, tested)
+}
+
+type item struct {
+	loadedValue string
+	V           string
+}
+
+var _ PostLoader = (*item)(nil)
+
+func (s *item) PostLoad() error {
+	s.loadedValue = s.V
+	return nil
+}
