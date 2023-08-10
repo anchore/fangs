@@ -207,11 +207,22 @@ func postLoad(v reflect.Value) error {
 		v = v.Elem()
 	}
 
-	if !isStruct(t) {
-		return nil
+	switch {
+	case isStruct(t):
+		return postLoadStruct(v)
+	case isSlice(t):
+		return postLoadSlice(v)
+	case isMap(t):
+		return postLoadMap(v)
 	}
 
-	// call recursively on struct fields
+	return nil
+}
+
+// postLoadStruct call recursively on struct fields
+func postLoadStruct(v reflect.Value) error {
+	t := v.Type()
+
 	for i := 0; i < v.NumField(); i++ {
 		f := t.Field(i)
 		if !f.IsExported() {
@@ -219,12 +230,16 @@ func postLoad(v reflect.Value) error {
 		}
 
 		v := v.Field(i)
-		t := v.Type()
-		for isPtr(t) {
-			t = t.Elem()
+
+		if isNil(v) {
+			continue
 		}
 
-		if !v.CanAddr() || !isStruct(t) {
+		for isPtr(v.Type()) {
+			v = v.Elem()
+		}
+
+		if !v.CanAddr() {
 			continue
 		}
 
@@ -232,7 +247,66 @@ func postLoad(v reflect.Value) error {
 			return err
 		}
 	}
+	return nil
+}
 
+// postLoadSlice call recursively on slice items
+func postLoadSlice(v reflect.Value) error {
+	for i := 0; i < v.Len(); i++ {
+		v := v.Index(i)
+
+		if isNil(v) {
+			continue
+		}
+
+		for isPtr(v.Type()) {
+			v = v.Elem()
+		}
+
+		if !v.CanAddr() {
+			continue
+		}
+
+		if err := postLoad(v.Addr()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// postLoadMap call recursively on map values
+func postLoadMap(v reflect.Value) error {
+	mapV := v
+	i := v.MapRange()
+	for i.Next() {
+		v := i.Value()
+
+		if isNil(v) {
+			continue
+		}
+
+		for isPtr(v.Type()) {
+			v = v.Elem()
+		}
+
+		if !v.CanAddr() {
+			// unable to call .Addr() on struct map entries, so copy to a new instance and set on the map
+			if isStruct(v.Type()) {
+				newV := reflect.New(v.Type())
+				newV.Elem().Set(v)
+				if err := postLoad(newV); err != nil {
+					return err
+				}
+				mapV.SetMapIndex(i.Key(), newV.Elem())
+			}
+
+			continue
+		}
+
+		if err := postLoad(v.Addr()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -288,6 +362,21 @@ func isStruct(typ reflect.Type) bool {
 
 func isSlice(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Slice
+}
+
+func isMap(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Map
+}
+
+func isNil(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	switch v.Type().Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
 }
 
 func isNotFoundErr(err error) bool {
