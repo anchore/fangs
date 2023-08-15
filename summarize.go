@@ -89,11 +89,16 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 			}
 			summarize(cfg, descriptions, sub, v, path)
 		} else {
+			env := envVar(cfg.AppName, path...)
+			// for slices of structs, do not output an env var
+			if t.Kind() == reflect.Slice && baseType(t.Elem()).Kind() == reflect.Struct {
+				env = ""
+			}
 			s.add(cfg.Logger,
 				name,
 				v,
 				descriptions.GetDescription(v, f),
-				envVar(cfg.AppName, path...))
+				env)
 		}
 	}
 }
@@ -189,6 +194,13 @@ func base(v reflect.Value) (reflect.Value, reflect.Type) {
 		}
 	}
 	return v, t
+}
+
+func baseType(t reflect.Type) reflect.Type {
+	for isPtr(t) {
+		t = t.Elem()
+	}
+	return t
 }
 
 type section struct {
