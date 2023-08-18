@@ -330,7 +330,6 @@ StringSlice:
   - 's1'
   - 's2'
 
-# (env: MY_APP_SUBSLICE)
 SubSlice: 
   - SubValue: 'sv1'
     IntSlice: []
