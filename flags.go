@@ -38,22 +38,24 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 			if !f.IsExported() {
 				continue
 			}
-			v := v.Field(i)
+			fv := v.Field(i)
 
-			if isPtr(v.Type()) {
-				if v.IsNil() {
-					newV := reflect.New(v.Type().Elem())
-					v.Set(newV)
+			if isPtr(fv.Type()) {
+				// check if this is a pointer to a struct, if so, we need to initialize it
+				kind := fv.Type().Elem().Kind()
+				if fv.IsNil() && kind == reflect.Struct {
+					newV := reflect.New(fv.Type().Elem())
+					fv.Set(newV)
 				}
 			} else {
-				v = v.Addr()
+				fv = fv.Addr()
 			}
 
-			if !v.CanInterface() {
+			if !fv.CanInterface() {
 				continue
 			}
 
-			addFlags(log, flags, v.Interface())
+			addFlags(log, flags, fv.Interface())
 		}
 	}
 }
