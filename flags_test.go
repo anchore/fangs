@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-logger/adapter/discard"
@@ -50,6 +51,25 @@ func Test_AddFlags(t *testing.T) {
 	require.Contains(t, flagNames, "t1-flag")
 	require.Contains(t, flagNames, "sub2-flag")
 	require.Contains(t, flagNames, "sub3-flag")
+}
+
+func Test_AddFlags_StructRefs(t *testing.T) {
+	flags := pflag.NewFlagSet("set", pflag.ContinueOnError)
+
+	type ty2 struct {
+		Nested   string
+		Optional *bool // ensure this is not set
+	}
+	type ty1 struct {
+		T2 *ty2 // ensure the zero value is set
+	}
+
+	t1 := &ty1{}
+
+	AddFlags(discard.New(), flags, t1)
+
+	require.NotNil(t, t1.T2)
+	assert.Nil(t, t1.T2.Optional)
 }
 
 type Sub2 struct {
