@@ -584,6 +584,36 @@ func Test_PostLoad(t *testing.T) {
 	require.Equal(t, "ptr-v", r.Ptr.Sv2)
 }
 
+func Test_EmbeddedStructInConfigMember(t *testing.T) {
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		moduleConfig      `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+
+	cfg := NewConfig("my-app")
+	t.Setenv("MY_APP_MODULE_1_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_SPECIAL_MODULE_BOOL", "true")
+
+	cmd := &cobra.Command{}
+	err := Load(cfg, cmd, cfgPtr)
+	require.NoError(t, err)
+	require.True(t, cfgPtr.Module1.ModuleBool)
+	require.True(t, cfgPtr.Module2.ModuleBool)
+	require.True(t, cfgPtr.Module2.SpecialModuleBool)
+}
+
 type rootPostLoad struct {
 	V    string `mapstructure:"v"`
 	V2   string
