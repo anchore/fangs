@@ -9,6 +9,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-logger/adapter/discard"
@@ -341,6 +342,117 @@ SubSlice:
       - 1
 
 `, s)
+}
+
+func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
+	root := &cobra.Command{}
+
+	appConfigPtr := &struct {
+		Public      `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			Public    `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
+  
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
+  
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeWithEmbeddedPublicStructPointer(t *testing.T) {
+	root := &cobra.Command{}
+
+	appConfigPtr := &struct {
+		*Public     `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			*Public   `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
+  
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
+  
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeWithEmbeddedPrivateStruct(t *testing.T) {
+	root := &cobra.Command{}
+
+	appConfigPtr := &struct {
+		private     `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			private   `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
+  
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
+  
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeWithEmbeddedPrivateStructPointer(t *testing.T) {
+	// NOTE: this case is _DIFFERENT_ than the rest -- embedded private struct pointers are not supported
+	root := &cobra.Command{}
+
+	appConfigPtr := &struct {
+		Something   bool `yaml:"something" mapstructure:"something"`
+		*private    `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			*private  `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `# (env: APP_SOMETHING)
+something: false
+
+field:
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
+  
+`
+	assert.Equal(t, expected, s)
 }
 
 func Test_SummarizeLocations(t *testing.T) {

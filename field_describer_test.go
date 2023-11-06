@@ -29,6 +29,63 @@ func Test_fieldDescriber(t *testing.T) {
 	require.Contains(t, values, "fd test 3 value description")
 }
 
+func Test_FieldDescriberDoesNotPanicOnEmbeddedUnexportedStruct(t *testing.T) {
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		moduleConfig      `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+	_ = NewFieldDescriber(cfgPtr)
+}
+
+func Test_FieldDescriberDoesNotPanicOnEmbeddedExportedStructPointer(t *testing.T) {
+	type ModuleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		*ModuleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+	_ = NewFieldDescriber(cfgPtr)
+}
+
+func Test_FieldDescriberDoesNotPanicOnEmbeddedUnexportedStructPointer(t *testing.T) {
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		*moduleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+	_ = NewFieldDescriber(cfgPtr)
+}
+
 type fdTest1 struct {
 	called  int
 	String  string
