@@ -152,6 +152,12 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 			path = append(path, f.Name)
 		}
 
+		if !v.IsValid() {
+			// v is an unitialized embedded struct pointer to an unexported type.
+			// This is considered private, and we won't be able to set any values on it.
+			// Skipping this to avoid a panic.
+			continue
+		}
 		v := v.Field(i)
 
 		t := f.Type
@@ -159,7 +165,11 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 			t = t.Elem()
 			if isStruct(t) {
 				newV := reflect.New(t)
-				v.Set(newV)
+				// v.CanSet can be false if we're trying to set a field on a struct
+				// embedded via pointer when the embedded struct is unexported
+				if v.CanSet() {
+					v.Set(newV)
+				}
 			}
 		}
 
