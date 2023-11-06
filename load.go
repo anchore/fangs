@@ -89,6 +89,8 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 // configureViper loads the default configuration values into the viper instance,
 // before the config values are read and parsed. the value _must_ be a pointer but
 // may be a pointer to a pointer
+//
+//nolint:gocognit
 func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRefs, path []string) {
 	t := v.Type()
 	if !isPtr(t) {
