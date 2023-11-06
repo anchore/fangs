@@ -45,7 +45,9 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 				kind := v.Type().Elem().Kind()
 				if v.IsNil() && kind == reflect.Struct {
 					newV := reflect.New(v.Type().Elem())
-					v.Set(newV)
+					if v.CanSet() {
+						v.Set(newV)
+					}
 				}
 			} else {
 				v = v.Addr()

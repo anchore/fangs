@@ -9,6 +9,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-logger/adapter/discard"
@@ -341,6 +342,114 @@ SubSlice:
       - 1
 
 `, s)
+}
+
+func Test_SummarizeValuesWithEmbeddedStruct(t *testing.T) {
+	root := &cobra.Command{}
+	type ModuleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		ModuleConfig      `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	appConfigPtr := &TopLevelConfig{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("my-app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `module-1:
+  # (env: MY_APP_MODULE_1_MODULE_BOOL)
+  module-bool: false
+  
+module-2:
+  # (env: MY_APP_MODULE_2_MODULE_BOOL)
+  module-bool: false
+  
+  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
+  special-module-bool: false
+  
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeValuesWithEmbeddedStructPointer(t *testing.T) {
+	root := &cobra.Command{}
+	type ModuleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		*ModuleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	appConfigPtr := &TopLevelConfig{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("my-app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `module-1:
+  # (env: MY_APP_MODULE_1_MODULE_BOOL)
+  module-bool: false
+  
+module-2:
+  # (env: MY_APP_MODULE_2_MODULE_BOOL)
+  module-bool: false
+  
+  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
+  special-module-bool: false
+  
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeValuesWithEmbeddedStructPointerToUnexportedType(t *testing.T) {
+	root := &cobra.Command{}
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		*moduleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	appConfigPtr := &TopLevelConfig{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("my-app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `module-1:
+  # (env: MY_APP_MODULE_1_MODULE_BOOL)
+  module-bool: false
+  
+module-2:
+  # (env: MY_APP_MODULE_2_MODULE_BOOL)
+  module-bool: false
+  
+  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
+  special-module-bool: false
+  
+`
+	assert.Equal(t, expected, s)
 }
 
 func Test_SummarizeLocations(t *testing.T) {
