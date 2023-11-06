@@ -584,6 +584,101 @@ func Test_PostLoad(t *testing.T) {
 	require.Equal(t, "ptr-v", r.Ptr.Sv2)
 }
 
+func Test_EmbeddedStructInConfigMember(t *testing.T) {
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		moduleConfig      `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+
+	cfg := NewConfig("my-app")
+	t.Setenv("MY_APP_MODULE_1_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_SPECIAL_MODULE_BOOL", "true")
+
+	cmd := &cobra.Command{}
+	err := Load(cfg, cmd, cfgPtr)
+	require.NoError(t, err)
+	require.True(t, cfgPtr.Module1.ModuleBool)
+	require.True(t, cfgPtr.Module2.ModuleBool)
+	require.True(t, cfgPtr.Module2.SpecialModuleBool)
+}
+
+func Test_EmbeddedStructPointerInConfigMember(t *testing.T) {
+	type ModuleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	// Note that, unlike Test_EmbeddedStructInConfigMember above,
+	// in this test, ModuleConfig is exported. This is a language
+	// limitation. See https://go-review.googlesource.com/c/go/+/53643
+	// and https://github.com/golang/go/issues/21357
+	type specialModuleConfig struct {
+		*ModuleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+
+	cfg := NewConfig("my-app")
+	t.Setenv("MY_APP_MODULE_1_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_SPECIAL_MODULE_BOOL", "true")
+
+	cmd := &cobra.Command{}
+	err := Load(cfg, cmd, cfgPtr)
+	require.NoError(t, err)
+	require.True(t, cfgPtr.Module1.ModuleBool)
+	require.True(t, cfgPtr.Module2.ModuleBool)
+	require.True(t, cfgPtr.Module2.SpecialModuleBool)
+}
+
+func Test_EmbeddedPrivateStructPointerInConfigMemberDoesNotPanic(t *testing.T) {
+	// Embedded an unexported struct via a pointer cannot be set by reflection,
+	// see comment in test case above.
+	// Assert that in this case fangs does not panic, and bubbles up the error from mapstructure.
+	type moduleConfig struct {
+		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
+	}
+
+	type specialModuleConfig struct {
+		*moduleConfig     `yaml:",inline" mapstructure:",squash"`
+		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
+	}
+
+	type TopLevelConfig struct {
+		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
+		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
+	}
+
+	cfgPtr := &TopLevelConfig{}
+
+	cfg := NewConfig("my-app")
+	t.Setenv("MY_APP_MODULE_1_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_MODULE_BOOL", "true")
+	t.Setenv("MY_APP_MODULE_2_SPECIAL_MODULE_BOOL", "true")
+
+	cmd := &cobra.Command{}
+	err := Load(cfg, cmd, cfgPtr)
+	// https://github.com/mitchellh/mapstructure/blob/bf980b35cac4dfd34e05254ee5aba086504c3f96/mapstructure.go#L1338
+	assert.ErrorContains(t, err, "unsupported type for squash")
+}
+
 type rootPostLoad struct {
 	V    string `mapstructure:"v"`
 	V2   string
