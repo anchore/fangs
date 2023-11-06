@@ -84,7 +84,7 @@ func addFieldDescriptions(d FieldDescriptionSet, v reflect.Value) {
 
 	for i := 0; i < v.NumField(); i++ {
 		f := t.Field(i)
-		if skipField(f) {
+		if !includeField(f) {
 			continue
 		}
 		v := v.Field(i)

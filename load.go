@@ -130,7 +130,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	// for each field in the configuration struct, see if the field implements the defaultValueLoader interface and invoke it if it does
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if skipField(f) {
+		if !includeField(f) {
 			continue
 		}
 
@@ -238,7 +238,7 @@ func postLoadStruct(v reflect.Value) error {
 
 	for i := 0; i < v.NumField(); i++ {
 		f := t.Field(i)
-		if skipField(f) {
+		if !includeField(f) {
 			continue
 		}
 
@@ -397,11 +397,8 @@ func isNotFoundErr(err error) bool {
 	return err != nil && errors.As(err, &notFound)
 }
 
-// skipField determines whether to skip a field
-// when using reflection to process the application's config
-// structure. Skip fields that are unexported, unless
-// they are anonymous, since anonymous fields are embedded fields,
-// which must be processed in case they contain exported members.
-func skipField(f reflect.StructField) bool {
-	return !f.IsExported() && !f.Anonymous
+// includeField determines whether to include or skip a field when processing the application's nested configuration load.
+// fields that are processed include: public/exported fields, embedded structs (not pointer private/unexported embedding)
+func includeField(f reflect.StructField) bool {
+	return (f.Anonymous && !isPtr(f.Type)) || f.IsExported()
 }

@@ -35,7 +35,7 @@ func addFlags(log logger.Logger, flags FlagSet, o any) {
 	if isStruct(t) {
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if skipField(f) {
+			if !includeField(f) {
 				continue
 			}
 			v := v.Field(i)

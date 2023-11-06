@@ -50,7 +50,7 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if skipField(f) {
+		if !includeField(f) {
 			continue
 		}
 
@@ -134,7 +134,7 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 	case isStruct(t):
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if skipField(f) {
+			if !includeField(f) {
 				continue
 			}
 

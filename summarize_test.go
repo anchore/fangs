@@ -344,109 +344,112 @@ SubSlice:
 `, s)
 }
 
-func Test_SummarizeValuesWithEmbeddedStruct(t *testing.T) {
+func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
 	root := &cobra.Command{}
-	type ModuleConfig struct {
-		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
-	}
 
-	type specialModuleConfig struct {
-		ModuleConfig      `yaml:",inline" mapstructure:",squash"`
-		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
-	}
-
-	type TopLevelConfig struct {
-		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
-		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
-	}
-
-	appConfigPtr := &TopLevelConfig{}
+	appConfigPtr := &struct {
+		Public      `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			Public    `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
-	cfg := NewConfig("my-app")
+	cfg := NewConfig("app")
 	s := SummarizeCommand(cfg, root, appConfigPtr)
-	expected := `module-1:
-  # (env: MY_APP_MODULE_1_MODULE_BOOL)
-  module-bool: false
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
   
-module-2:
-  # (env: MY_APP_MODULE_2_MODULE_BOOL)
-  module-bool: false
-  
-  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
-  special-module-bool: false
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
   
 `
 	assert.Equal(t, expected, s)
 }
 
-func Test_SummarizeValuesWithEmbeddedStructPointer(t *testing.T) {
+func Test_SummarizeWithEmbeddedPublicStructPointer(t *testing.T) {
 	root := &cobra.Command{}
-	type ModuleConfig struct {
-		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
-	}
 
-	type specialModuleConfig struct {
-		*ModuleConfig     `yaml:",inline" mapstructure:",squash"`
-		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
-	}
-
-	type TopLevelConfig struct {
-		Module1 ModuleConfig        `yaml:"module-1" mapstructure:"module-1"`
-		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
-	}
-
-	appConfigPtr := &TopLevelConfig{}
+	appConfigPtr := &struct {
+		*Public     `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			*Public   `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
-	cfg := NewConfig("my-app")
+	cfg := NewConfig("app")
 	s := SummarizeCommand(cfg, root, appConfigPtr)
-	expected := `module-1:
-  # (env: MY_APP_MODULE_1_MODULE_BOOL)
-  module-bool: false
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
   
-module-2:
-  # (env: MY_APP_MODULE_2_MODULE_BOOL)
-  module-bool: false
-  
-  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
-  special-module-bool: false
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
   
 `
 	assert.Equal(t, expected, s)
 }
 
-func Test_SummarizeValuesWithEmbeddedStructPointerToUnexportedType(t *testing.T) {
+func Test_SummarizeWithEmbeddedPrivateStruct(t *testing.T) {
 	root := &cobra.Command{}
-	type moduleConfig struct {
-		ModuleBool bool `yaml:"module-bool" mapstructure:"module-bool"`
-	}
 
-	type specialModuleConfig struct {
-		*moduleConfig     `yaml:",inline" mapstructure:",squash"`
-		SpecialModuleBool bool `yaml:"special-module-bool" mapstructure:"special-module-bool"`
-	}
-
-	type TopLevelConfig struct {
-		Module1 moduleConfig        `yaml:"module-1" mapstructure:"module-1"`
-		Module2 specialModuleConfig `yaml:"module-2" mapstructure:"module-2"`
-	}
-
-	appConfigPtr := &TopLevelConfig{}
+	appConfigPtr := &struct {
+		private     `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			private   `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
-	cfg := NewConfig("my-app")
+	cfg := NewConfig("app")
 	s := SummarizeCommand(cfg, root, appConfigPtr)
-	expected := `module-1:
-  # (env: MY_APP_MODULE_1_MODULE_BOOL)
-  module-bool: false
+	expected := `# (env: APP_VALUE)
+value: false
+
+field:
+  # (env: APP_FIELD_VALUE)
+  value: false
   
-module-2:
-  # (env: MY_APP_MODULE_2_MODULE_BOOL)
-  module-bool: false
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
   
-  # (env: MY_APP_MODULE_2_SPECIAL_MODULE_BOOL)
-  special-module-bool: false
+`
+	assert.Equal(t, expected, s)
+}
+
+func Test_SummarizeWithEmbeddedPrivateStructPointer(t *testing.T) {
+	// NOTE: this case is _DIFFERENT_ than the rest -- embedded private struct pointers are not supported
+	root := &cobra.Command{}
+
+	appConfigPtr := &struct {
+		Something   bool `yaml:"something" mapstructure:"something"`
+		*private    `yaml:",inline" mapstructure:",squash"`
+		PublicField struct {
+			*private  `yaml:",inline" mapstructure:",squash"`
+			Secondary bool `yaml:"secondary" mapstructure:"secondary"`
+		} `yaml:"field" mapstructure:"field"`
+	}{}
+
+	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	cfg := NewConfig("app")
+	s := SummarizeCommand(cfg, root, appConfigPtr)
+	expected := `# (env: APP_SOMETHING)
+something: false
+
+field:
+  # (env: APP_FIELD_SECONDARY)
+  secondary: false
   
 `
 	assert.Equal(t, expected, s)
