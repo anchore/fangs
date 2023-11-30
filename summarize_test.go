@@ -2,17 +2,17 @@ package fangs
 
 import (
 	"fmt"
-	"github.com/google/go-cmp/cmp"
-	"gopkg.in/yaml.v3"
 	"strings"
 	"testing"
 
 	"github.com/adrg/xdg"
+	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/anchore/go-logger/adapter/discard"
 )

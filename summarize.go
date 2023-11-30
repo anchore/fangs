@@ -108,6 +108,9 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 	buf := bytes.Buffer{}
 
 	v, t := base(value)
+	if v.Kind() == reflect.Ptr && v.IsNil() {
+		return ""
+	}
 	switch {
 	case isSlice(t):
 		if v.Len() == 0 {
@@ -168,9 +171,6 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 		}
 
 	case v.CanInterface():
-		if v.Kind() == reflect.Ptr && v.IsNil() {
-			return ""
-		}
 		iFace := v.Interface()
 		switch iFace.(type) {
 		case string:
