@@ -3,6 +3,7 @@ package fangs
 import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
+	"gopkg.in/yaml.v3"
 	"strings"
 	"testing"
 
@@ -358,13 +359,13 @@ SubSlice:
 
 func TestSummarizePtr(t *testing.T) {
 	type T1 struct {
-		TopBoolPtrNil   *bool
-		TopBoolPtrTrue  *bool
-		TopBoolPtrFalse *bool
-		TopStringPtrNil *string
-		TopStringPtrSet *string
-		TopIntPtrNil    *int
-		TopIntPtrSet    *int
+		TopBoolPtrNil   *bool   `yaml:"TopBoolPtrNil"`
+		TopBoolPtrTrue  *bool   `yaml:"TopBoolPtrTrue"`
+		TopBoolPtrFalse *bool   `yaml:"TopBoolPtrFalse"`
+		TopStringPtrNil *string `yaml:"TopStringPtrNil"`
+		TopStringPtrSet *string `yaml:"TopStringPtrSet"`
+		TopIntPtrNil    *int    `yaml:"TopIntPtrNil"`
+		TopIntPtrSet    *int    `yaml:"TopIntPtrSet"`
 	}
 
 	cfg := NewConfig("my-app")
@@ -412,6 +413,16 @@ TopIntPtrSet: 42
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected summary (-want +got):\n%s", diff)
+	}
+
+	// ensure that we can yaml.Unmarshal the way we encode nil ptrs
+	var emptyConfig T1
+	err := yaml.Unmarshal([]byte(got), &emptyConfig)
+	require.NoError(t, err)
+	newSummary := SummarizeCommand(cfg, subCmd, emptyConfig)
+
+	if diff := cmp.Diff(got, newSummary); diff != "" {
+		t.Errorf("unexpected diff from serialize round trip (-before +after):\n%s", diff)
 	}
 }
 
