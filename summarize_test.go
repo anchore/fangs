@@ -2,6 +2,7 @@ package fangs
 
 import (
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"strings"
 	"testing"
 
@@ -262,6 +263,7 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	}
 	type T1 struct {
 		TopBool     bool
+		TopBoolPtr  *bool
 		TopString   string
 		Summarize1  `mapstructure:",squash"`
 		Pointer     *Summarize2 `mapstructure:"ptr"`
@@ -298,10 +300,13 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
 	AddFlags(cfg.Logger, subCmd.Flags(), t1)
 
-	s := SummarizeCommand(cfg, subCmd, t1)
+	got := SummarizeCommand(cfg, subCmd, t1)
 
-	require.Equal(t, `# (env: MY_APP_TOPBOOL)
+	want := `# (env: MY_APP_TOPBOOL)
 TopBool: false
+
+# (env: MY_APP_TOPBOOLPTR)
+TopBoolPtr: nil
 
 # top-string command description (env: MY_APP_TOPSTRING)
 TopString: ''
@@ -341,7 +346,10 @@ SubSlice:
       - 2
       - 1
 
-`, s)
+`
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected summary (-want +got):\n%s", diff)
+	}
 }
 
 func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
