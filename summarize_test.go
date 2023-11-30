@@ -262,14 +262,15 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 		IntSlice []int
 	}
 	type T1 struct {
-		TopBool     bool
-		TopBoolPtr  *bool
-		TopString   string
-		Summarize1  `mapstructure:",squash"`
-		Pointer     *Summarize2 `mapstructure:"ptr"`
-		NilPointer  *Summarize3 `mapstructure:"nil"`
-		StringSlice []string
-		SubSlice    []Sub
+		TopBool      bool
+		TopBoolPtr   *bool
+		TopString    string
+		TopStringPtr *string
+		Summarize1   `mapstructure:",squash"`
+		Pointer      *Summarize2 `mapstructure:"ptr"`
+		NilPointer   *Summarize3 `mapstructure:"nil"`
+		StringSlice  []string
+		SubSlice     []Sub
 	}
 
 	cfg := NewConfig("my-app")
@@ -306,10 +307,13 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 TopBool: false
 
 # (env: MY_APP_TOPBOOLPTR)
-TopBoolPtr: nil
+TopBoolPtr:
 
 # top-string command description (env: MY_APP_TOPSTRING)
 TopString: ''
+
+# (env: MY_APP_TOPSTRINGPTR)
+TopStringPtr:
 
 # (env: MY_APP_NAME)
 Name: ''
@@ -347,6 +351,65 @@ SubSlice:
       - 1
 
 `
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected summary (-want +got):\n%s", diff)
+	}
+}
+
+func TestSummarizePtr(t *testing.T) {
+	type T1 struct {
+		TopBoolPtrNil   *bool
+		TopBoolPtrTrue  *bool
+		TopBoolPtrFalse *bool
+		TopStringPtrNil *string
+		TopStringPtrSet *string
+		TopIntPtrNil    *int
+		TopIntPtrSet    *int
+	}
+
+	cfg := NewConfig("my-app")
+	f := false
+	tr := true
+	stringOne := "string-one"
+	intOne := 42
+	t1 := &T1{
+		TopBoolPtrTrue:  &tr,
+		TopBoolPtrFalse: &f,
+		TopStringPtrSet: &stringOne,
+		TopIntPtrSet:    &intOne,
+	}
+
+	cmd := &cobra.Command{}
+	subCmd := &cobra.Command{}
+	cmd.AddCommand(subCmd)
+
+	AddFlags(cfg.Logger, subCmd.Flags(), t1)
+
+	got := SummarizeCommand(cfg, subCmd, t1)
+
+	want := `# (env: MY_APP_TOPBOOLPTRNIL)
+TopBoolPtrNil:
+
+# (env: MY_APP_TOPBOOLPTRTRUE)
+TopBoolPtrTrue: true
+
+# (env: MY_APP_TOPBOOLPTRFALSE)
+TopBoolPtrFalse: false
+
+# (env: MY_APP_TOPSTRINGPTRNIL)
+TopStringPtrNil:
+
+# (env: MY_APP_TOPSTRINGPTRSET)
+TopStringPtrSet: 'string-one'
+
+# (env: MY_APP_TOPINTPTRNIL)
+TopIntPtrNil:
+
+# (env: MY_APP_TOPINTPTRSET)
+TopIntPtrSet: 42
+
+`
+
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected summary (-want +got):\n%s", diff)
 	}
