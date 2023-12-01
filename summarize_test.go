@@ -6,11 +6,13 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
+	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/anchore/go-logger/adapter/discard"
 )
@@ -261,13 +263,15 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 		IntSlice []int
 	}
 	type T1 struct {
-		TopBool     bool
-		TopString   string
-		Summarize1  `mapstructure:",squash"`
-		Pointer     *Summarize2 `mapstructure:"ptr"`
-		NilPointer  *Summarize3 `mapstructure:"nil"`
-		StringSlice []string
-		SubSlice    []Sub
+		TopBool      bool
+		TopBoolPtr   *bool
+		TopString    string
+		TopStringPtr *string
+		Summarize1   `mapstructure:",squash"`
+		Pointer      *Summarize2 `mapstructure:"ptr"`
+		NilPointer   *Summarize3 `mapstructure:"nil"`
+		StringSlice  []string
+		SubSlice     []Sub
 	}
 
 	cfg := NewConfig("my-app")
@@ -298,13 +302,19 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
 	AddFlags(cfg.Logger, subCmd.Flags(), t1)
 
-	s := SummarizeCommand(cfg, subCmd, t1)
+	got := SummarizeCommand(cfg, subCmd, t1)
 
-	require.Equal(t, `# (env: MY_APP_TOPBOOL)
+	want := `# (env: MY_APP_TOPBOOL)
 TopBool: false
+
+# (env: MY_APP_TOPBOOLPTR)
+TopBoolPtr:
 
 # top-string command description (env: MY_APP_TOPSTRING)
 TopString: ''
+
+# (env: MY_APP_TOPSTRINGPTR)
+TopStringPtr:
 
 # (env: MY_APP_NAME)
 Name: ''
@@ -341,7 +351,79 @@ SubSlice:
       - 2
       - 1
 
-`, s)
+`
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected summary (-want +got):\n%s", diff)
+	}
+}
+
+func TestSummarizePtr(t *testing.T) {
+	type T1 struct {
+		TopBoolPtrNil   *bool   `yaml:"TopBoolPtrNil"`
+		TopBoolPtrTrue  *bool   `yaml:"TopBoolPtrTrue"`
+		TopBoolPtrFalse *bool   `yaml:"TopBoolPtrFalse"`
+		TopStringPtrNil *string `yaml:"TopStringPtrNil"`
+		TopStringPtrSet *string `yaml:"TopStringPtrSet"`
+		TopIntPtrNil    *int    `yaml:"TopIntPtrNil"`
+		TopIntPtrSet    *int    `yaml:"TopIntPtrSet"`
+	}
+
+	cfg := NewConfig("my-app")
+	f := false
+	tr := true
+	stringOne := "string-one"
+	intOne := 42
+	t1 := &T1{
+		TopBoolPtrTrue:  &tr,
+		TopBoolPtrFalse: &f,
+		TopStringPtrSet: &stringOne,
+		TopIntPtrSet:    &intOne,
+	}
+
+	cmd := &cobra.Command{}
+	subCmd := &cobra.Command{}
+	cmd.AddCommand(subCmd)
+
+	AddFlags(cfg.Logger, subCmd.Flags(), t1)
+
+	got := SummarizeCommand(cfg, subCmd, t1)
+
+	want := `# (env: MY_APP_TOPBOOLPTRNIL)
+TopBoolPtrNil:
+
+# (env: MY_APP_TOPBOOLPTRTRUE)
+TopBoolPtrTrue: true
+
+# (env: MY_APP_TOPBOOLPTRFALSE)
+TopBoolPtrFalse: false
+
+# (env: MY_APP_TOPSTRINGPTRNIL)
+TopStringPtrNil:
+
+# (env: MY_APP_TOPSTRINGPTRSET)
+TopStringPtrSet: 'string-one'
+
+# (env: MY_APP_TOPINTPTRNIL)
+TopIntPtrNil:
+
+# (env: MY_APP_TOPINTPTRSET)
+TopIntPtrSet: 42
+
+`
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected summary (-want +got):\n%s", diff)
+	}
+
+	// ensure that we can yaml.Unmarshal the way we encode nil ptrs
+	var emptyConfig T1
+	err := yaml.Unmarshal([]byte(got), &emptyConfig)
+	require.NoError(t, err)
+	newSummary := SummarizeCommand(cfg, subCmd, emptyConfig)
+
+	if diff := cmp.Diff(got, newSummary); diff != "" {
+		t.Errorf("unexpected diff from serialize round trip (-before +after):\n%s", diff)
+	}
 }
 
 func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
