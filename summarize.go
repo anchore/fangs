@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
@@ -273,13 +275,15 @@ func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) 
 	if s.name != "" {
 		nextIndent += "  "
 
+		desc := &bytes.Buffer{}
+
 		if s.description != "" {
 			// support multi-line descriptions
 			lines := strings.Split(strings.TrimSpace(s.description), "\n")
 			for idx, line := range lines {
-				out.WriteString(indent + "# " + line)
+				desc.WriteString(indent + "# " + line)
 				if idx < len(lines)-1 {
-					out.WriteString("\n")
+					desc.WriteString("\n")
 				}
 			}
 		}
@@ -287,16 +291,18 @@ func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) 
 			value := fmt.Sprintf("(env: %s)", s.env)
 			if s.description == "" {
 				// since there is no description, we need to start the comment
-				out.WriteString(indent + "# ")
+				desc.WriteString(indent + "# ")
 			} else {
 				// buffer between description and env hint
-				out.WriteString(" ")
+				desc.WriteString(" ")
 			}
-			out.WriteString(value)
+			desc.WriteString(value)
 		}
 		if s.description != "" || s.env != "" {
-			out.WriteString("\n")
+			desc.WriteString("\n")
 		}
+
+		out.WriteString(wrapCommentLines(desc.String(), indent, 95))
 
 		out.WriteString(indent)
 
@@ -321,4 +327,73 @@ func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) 
 			out.WriteString("\n")
 		}
 	}
+}
+
+func wrapCommentLines(commentLine, indent string, limit int) string {
+	commentLine = strings.TrimSpace(removeComment(commentLine))
+
+	ogLines := strings.Split(commentLine, "(env: ")
+	if len(ogLines) == 0 {
+		return ""
+	}
+
+	if len(ogLines) > 1 {
+		for i := 1; i < len(ogLines); i++ {
+			ogLines[i] = "(env: " + ogLines[i]
+		}
+	}
+
+	ogLines[0] = strings.TrimSpace(ogLines[0])
+	if len(ogLines[0]) == 0 {
+		if len(ogLines) > 1 {
+			ogLines = ogLines[1:]
+		} else {
+			return ""
+		}
+	}
+
+	var lines []string
+	for _, line := range ogLines {
+		wrappedLine := wordWrap(line, limit)
+		lines = append(lines, strings.Split(wrappedLine, "\n")...)
+	}
+
+	return indent + "# " + strings.Join(lines, "\n"+indent+"# ") + "\n"
+}
+
+// source: https://codereview.stackexchange.com/questions/244435/word-wrap-in-go
+func wordWrap(text string, lineWidth int) string {
+	wrap := make([]byte, 0, len(text)+2*len(text)/lineWidth)
+	eoLine := lineWidth
+	inWord := false
+	for i, j := 0, 0; ; {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if size == 0 && r == utf8.RuneError {
+			r = ' '
+		}
+		if unicode.IsSpace(r) {
+			if inWord {
+				if i >= eoLine {
+					wrap = append(wrap, '\n')
+					eoLine = len(wrap) + lineWidth
+				} else if len(wrap) > 0 {
+					wrap = append(wrap, ' ')
+				}
+				wrap = append(wrap, text[j:i]...)
+			}
+			inWord = false
+		} else if !inWord {
+			inWord = true
+			j = i
+		}
+		if size == 0 && r == ' ' {
+			break
+		}
+		i += size
+	}
+	return string(wrap)
+}
+
+func removeComment(s string) string {
+	return strings.TrimSpace(strings.ReplaceAll(s, "# ", ""))
 }
