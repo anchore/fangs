@@ -300,6 +300,8 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	cmd.AddCommand(subCmd)
 
 	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
+
+	// AddFlags needs to be called to bind to any flags, which affects summarize text
 	AddFlags(cfg.Logger, subCmd.Flags(), t1)
 
 	got := SummarizeCommand(cfg, subCmd, t1)

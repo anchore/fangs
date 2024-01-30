@@ -39,8 +39,7 @@ func fileExists(name string) bool {
 // as there is no way using standard go or reflection to identify this. the method currently
 // uses some undefined behavior of the go runtime that may change or may be unreliable when
 // used by structs created with reflection or if debug information is not present
-func isPromotedMethod(o any, method string) bool {
-	v := reflect.ValueOf(o)
+func isPromotedMethod(v reflect.Value, method string) bool {
 	t := v.Type()
 	m, ok := t.MethodByName(method)
 	if !ok {

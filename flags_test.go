@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-logger/adapter/discard"
@@ -69,7 +68,7 @@ func Test_AddFlags_StructRefs(t *testing.T) {
 	AddFlags(discard.New(), flags, t1)
 
 	require.NotNil(t, t1.T2)
-	assert.Nil(t, t1.T2.Optional)
+	require.Nil(t, t1.T2.Optional)
 }
 
 type Sub2 struct {

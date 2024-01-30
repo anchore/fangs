@@ -71,7 +71,7 @@ func addFieldDescriptions(d FieldDescriptionSet, v reflect.Value) {
 	t := v.Type()
 	for isPtr(t) && v.CanInterface() {
 		o := v.Interface()
-		if p, ok := o.(FieldDescriber); ok && !isPromotedMethod(o, "DescribeFields") {
+		if p, ok := o.(FieldDescriber); ok && !isPromotedMethod(v, "DescribeFields") {
 			p.DescribeFields(d)
 		}
 		t = t.Elem()
