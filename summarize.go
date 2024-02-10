@@ -11,16 +11,16 @@ import (
 	"github.com/anchore/go-logger"
 )
 
-func Summarize(cfg Config, descriptions DescriptionProvider, values ...any) string {
+func Summarize(cfg Config, descriptions DescriptionProvider, redact redactFunc, values ...any) string {
 	root := &section{}
 	for _, value := range values {
 		v := reflect.ValueOf(value)
 		summarize(cfg, descriptions, root, v, nil)
 	}
-	return root.stringify(cfg)
+	return root.stringify(cfg, redact)
 }
 
-func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
+func SummarizeCommand(cfg Config, cmd *cobra.Command, redact redactFunc, values ...any) string {
 	root := cmd
 	for root.Parent() != nil {
 		root = root.Parent()
@@ -30,7 +30,7 @@ func SummarizeCommand(cfg Config, cmd *cobra.Command, values ...any) string {
 		NewStructDescriptionTagProvider(),
 		NewCommandFlagDescriptionProvider(cfg.TagName, root),
 	)
-	return Summarize(cfg, descriptions, values...)
+	return Summarize(cfg, descriptions, redact, values...)
 }
 
 func SummarizeLocations(cfg Config) (out []string) {
@@ -39,6 +39,8 @@ func SummarizeLocations(cfg Config) (out []string) {
 	}
 	return
 }
+
+type redactFunc func(string) string
 
 //nolint:gocognit
 func summarize(cfg Config, descriptions DescriptionProvider, s *section, value reflect.Value, path []string) {
@@ -105,7 +107,7 @@ func summarize(cfg Config, descriptions DescriptionProvider, s *section, value r
 
 // printVal prints a value in YAML format
 // nolint:gocognit
-func printVal(cfg Config, value reflect.Value, indent string) string {
+func printVal(cfg Config, redact redactFunc, value reflect.Value, indent string) string {
 	buf := bytes.Buffer{}
 
 	v, t := base(value)
@@ -121,7 +123,7 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 			buf.WriteString(indent)
 			buf.WriteString("- ")
 
-			val := printVal(cfg, v, indent+"  ")
+			val := printVal(cfg, redact, v, indent+"  ")
 			val = strings.TrimSpace(val)
 			buf.WriteString(val)
 
@@ -161,7 +163,7 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 			buf.WriteString("\n")
 			buf.WriteString(indent)
 
-			val := printVal(cfg, v, indent+"  ")
+			val := printVal(cfg, redact, v, indent+"  ")
 
 			val = fmt.Sprintf("%s: %s", name, val)
 
@@ -169,16 +171,13 @@ func printVal(cfg Config, value reflect.Value, indent string) string {
 		}
 
 	case v.CanInterface():
-		if v.Kind() == reflect.Ptr && v.IsNil() {
+		if v.Kind() == reflect.Pointer && v.IsNil() {
 			return ""
 		}
-		v := v.Interface()
-		switch v.(type) {
-		case string:
-			return fmt.Sprintf("'%s'", v)
-		default:
-			return fmt.Sprintf("%v", v)
+		if v.Kind() == reflect.String {
+			return fmt.Sprintf("'%s'", redact(v.String()))
 		}
+		return redact(fmt.Sprintf("%v", v.Interface()))
 	}
 
 	val := buf.String()
@@ -261,13 +260,13 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 	return add
 }
 
-func (s *section) stringify(cfg Config) string {
+func (s *section) stringify(cfg Config, redact redactFunc) string {
 	out := &bytes.Buffer{}
-	stringifySection(cfg, out, s, "")
+	stringifySection(cfg, redact, out, s, "")
 	return out.String()
 }
 
-func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) {
+func stringifySection(cfg Config, redact redactFunc, out *bytes.Buffer, s *section, indent string) {
 	nextIndent := indent
 
 	if s.name != "" {
@@ -304,7 +303,7 @@ func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) 
 		out.WriteString(":")
 
 		if s.value.IsValid() {
-			val := printVal(cfg, s.value, indent+"  ")
+			val := printVal(cfg, redact, s.value, indent+"  ")
 			if val != "" {
 				out.WriteString(" ")
 			}
@@ -315,7 +314,7 @@ func stringifySection(cfg Config, out *bytes.Buffer, s *section, indent string) 
 	}
 
 	for _, s := range s.subsections {
-		stringifySection(cfg, out, s, nextIndent)
+		stringifySection(cfg, redact, out, s, nextIndent)
 		if len(s.subsections) == 0 {
 			out.WriteString(nextIndent)
 			out.WriteString("\n")
