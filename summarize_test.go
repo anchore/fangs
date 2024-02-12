@@ -50,7 +50,7 @@ func Test_Summarize(t *testing.T) {
 	AddFlags(discard.New(), cmd.Flags(), &t0.S1)
 
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, cmd, filterPass, t0, &t0.S0, &t0.S1)
+	s := SummarizeCommand(cfg, cmd, nil, t0, &t0.S0, &t0.S1)
 	require.Equal(t, `# name0 usage flag (env: APP_NAME0)
 Name0: 'name0 val'
 
@@ -174,7 +174,7 @@ func Test_SummarizeValues(t *testing.T) {
 
 	describers := DescriptionProviders(d1, desc, NewStructDescriptionTagProvider())
 
-	s := Summarize(cfg, describers, filterPass, t1)
+	s := Summarize(cfg, describers, nil, t1)
 
 	require.Equal(t, `# top-bool manual description (env: APP_TOPBOOL)
 TopBool: false
@@ -302,7 +302,7 @@ func Test_SummarizeValuesWithPointers(t *testing.T) {
 	cmd.Flags().StringVar(&t1.TopString, "top-string", "", "top-string command description")
 	AddFlags(cfg.Logger, subCmd.Flags(), t1)
 
-	got := SummarizeCommand(cfg, subCmd, filterPass, t1)
+	got := SummarizeCommand(cfg, subCmd, nil, t1)
 
 	want := `# (env: MY_APP_TOPBOOL)
 TopBool: false
@@ -386,7 +386,7 @@ func TestSummarizePtr(t *testing.T) {
 
 	AddFlags(cfg.Logger, subCmd.Flags(), t1)
 
-	got := SummarizeCommand(cfg, subCmd, filterPass, t1)
+	got := SummarizeCommand(cfg, subCmd, nil, t1)
 
 	want := `# (env: MY_APP_TOPBOOLPTRNIL)
 TopBoolPtrNil:
@@ -419,7 +419,7 @@ TopIntPtrSet: 42
 	var emptyConfig T1
 	err := yaml.Unmarshal([]byte(got), &emptyConfig)
 	require.NoError(t, err)
-	newSummary := SummarizeCommand(cfg, subCmd, filterPass, emptyConfig)
+	newSummary := SummarizeCommand(cfg, subCmd, nil, emptyConfig)
 
 	if diff := cmp.Diff(got, newSummary); diff != "" {
 		t.Errorf("unexpected diff from serialize round trip (-before +after):\n%s", diff)
@@ -439,7 +439,7 @@ func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, filterPass, appConfigPtr)
+	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -467,7 +467,7 @@ func Test_SummarizeWithEmbeddedPublicStructPointer(t *testing.T) {
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, filterPass, appConfigPtr)
+	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -495,7 +495,7 @@ func Test_SummarizeWithEmbeddedPrivateStruct(t *testing.T) {
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, filterPass, appConfigPtr)
+	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -525,7 +525,7 @@ func Test_SummarizeWithEmbeddedPrivateStructPointer(t *testing.T) {
 
 	AddFlags(discard.New(), root.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, filterPass, appConfigPtr)
+	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
 	expected := `# (env: APP_SOMETHING)
 something: false
 
@@ -597,8 +597,4 @@ func Test_SummarizeLocations(t *testing.T) {
 	expected := fmt.Sprintf(strings.Repeat("%s\n", len(opts)), opts...)
 
 	require.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(got))
-}
-
-func filterPass(s string) string {
-	return s
 }

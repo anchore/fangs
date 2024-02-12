@@ -17,6 +17,11 @@ func Summarize(cfg Config, descriptions DescriptionProvider, filter ValueFilterF
 		v := reflect.ValueOf(value)
 		summarize(cfg, descriptions, root, v, nil)
 	}
+	if filter == nil {
+		filter = func(s string) string {
+			return s
+		}
+	}
 	return root.stringify(cfg, filter)
 }
 
