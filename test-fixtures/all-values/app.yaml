@@ -5,3 +5,5 @@ int-ptr: 3
 string: stringValueConfig
 string-ptr: stringValuePtrConfig
 string-array: stringArrayValueConfig
+float64: 1.618
+float64-ptr: 0.618
