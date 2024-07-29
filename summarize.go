@@ -40,7 +40,12 @@ func SummarizeCommand(cfg Config, cmd *cobra.Command, filter ValueFilterFunc, va
 
 func SummarizeLocations(cfg Config) (out []string) {
 	for _, f := range cfg.Finders {
-		out = append(out, f(cfg)...)
+		locations, err := f(cfg)
+		if err != nil {
+			// TODO: log?
+			continue
+		}
+		out = append(out, locations...)
 	}
 	return
 }

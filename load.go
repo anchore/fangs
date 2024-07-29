@@ -181,7 +181,11 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 
 func readConfigFile(cfg Config, v *viper.Viper) error {
 	for _, finder := range cfg.Finders {
-		for _, file := range finder(cfg) {
+		locations, err := finder(cfg)
+		if err != nil {
+			return err
+		}
+		for _, file := range locations {
 			if !fileExists(file) {
 				continue
 			}

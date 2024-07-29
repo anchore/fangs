@@ -9,11 +9,13 @@ import (
 )
 
 type Config struct {
-	Logger  logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
-	AppName string        `yaml:"-" json:"-" mapstructure:"-"`
-	TagName string        `yaml:"-" json:"-" mapstructure:"-"`
-	File    string        `yaml:"-" json:"-" mapstructure:"-"`
-	Finders []Finder      `yaml:"-" json:"-" mapstructure:"-"`
+	Logger         logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
+	AppName        string        `yaml:"-" json:"-" mapstructure:"-"`
+	TagName        string        `yaml:"-" json:"-" mapstructure:"-"`
+	File           string        `yaml:"-" json:"-" mapstructure:"-"`
+	Finders        []Finder      `yaml:"-" json:"-" mapstructure:"-"`
+	profileEnabled bool
+	Profile        string `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 var _ FlagAdder = (*Config)(nil)
@@ -47,6 +49,18 @@ func (c Config) WithConfigEnvVar() Config {
 	return c
 }
 
+// WithProfileEnvVar looks for the environment variable: <APP_NAME>_PROFILE as a way to specify a profile name
+// This will be overridden by a command-line flag
+func (c Config) WithProfileEnvVar() Config {
+	c.Profile = os.Getenv(envVar(c.AppName, "PROFILE"))
+	c.profileEnabled = true
+	return c
+}
+
 func (c *Config) AddFlags(flags FlagSet) {
 	flags.StringVarP(&c.File, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+
+	if c.profileEnabled {
+		flags.StringVarP(&c.Profile, "profile", "", fmt.Sprintf("%s profile configuration file", c.AppName))
+	}
 }
