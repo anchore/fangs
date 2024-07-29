@@ -297,6 +297,8 @@ func Test_AllFieldTypes(t *testing.T) {
 		String      string   `mapstructure:"string"`
 		StringPtr   *string  `mapstructure:"string-ptr"`
 		StringArray []string `mapstructure:"string-array"`
+		Float64     float64  `mapstructure:"float64"`
+		Float64Ptr  *float64 `mapstructure:"float64-ptr"`
 	}
 
 	tests := []struct {
@@ -316,6 +318,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				"string":       "stringValueEnv",
 				"string-ptr":   "stringValuePtrEnv",
 				"string-array": "stringArrayValueEnv",
+				"float64":      "3.14",
+				"float64-ptr":  "2.718",
 			},
 			expected: &all{
 				Bool:        true,
@@ -325,6 +329,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				String:      "stringValueEnv",
 				StringPtr:   p("stringValuePtrEnv"),
 				StringArray: []string{"stringArrayValueEnv"},
+				Float64:     3.14,
+				Float64Ptr:  p(2.718),
 			},
 		},
 		{
@@ -337,6 +343,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				String:      "stringValueConfig",
 				StringPtr:   p("stringValuePtrConfig"),
 				StringArray: []string{"stringArrayValueConfig"},
+				Float64:     1.618,
+				Float64Ptr:  p(0.618),
 			},
 		},
 		{
@@ -349,6 +357,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				"string":       "stringValueEnv",
 				"string-ptr":   "stringValuePtrEnv",
 				"string-array": "stringArrayValueEnv",
+				"float64":      "4.44",
+				"float64-ptr":  "5.55",
 			},
 			flags: map[string]string{
 				"bool":         "false",
@@ -356,6 +366,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				"int":          "5",
 				"string":       "stringValueFlag",
 				"string-array": "stringArrayValueFlag",
+				"float64":      "3.14",
+				"float64-ptr":  "2.718",
 			},
 			expected: &all{
 				Bool:        false,
@@ -365,6 +377,8 @@ func Test_AllFieldTypes(t *testing.T) {
 				String:      "stringValueFlag",
 				StringPtr:   p("stringValuePtrEnv"),
 				StringArray: []string{"stringArrayValueFlag"},
+				Float64:     3.14,
+				Float64Ptr:  p(2.718),
 			},
 		},
 	}
@@ -399,6 +413,8 @@ func Test_AllFieldTypes(t *testing.T) {
 			flags.StringVarP(&a.String, "string", "", a.String, "string usage")
 			StringPtrVarP(flags, &a.StringPtr, "string-ptr", "", "string ptr usage")
 			flags.StringArrayVarP(&a.StringArray, "string-array", "", a.StringArray, "string array usage")
+			flags.Float64VarP(&a.Float64, "float64", "", a.Float64, "float64 usage")
+			Float64PtrVarP(flags, &a.Float64Ptr, "float64-ptr", "", "float64 ptr usage")
 
 			for k, v := range test.flags {
 				err := flags.Set(k, v)

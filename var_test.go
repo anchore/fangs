@@ -14,6 +14,7 @@ func Test_Ptr(t *testing.T) {
 		BoolVal   *bool
 		IntVal    *int
 		StringVal *string
+		FloatVal  *float64
 	}
 
 	a := &typ{}
@@ -22,6 +23,7 @@ func Test_Ptr(t *testing.T) {
 	BoolPtrVarP(flags, &a.BoolVal, "bool-ptr", "", "bool ptr usage")
 	IntPtrVarP(flags, &a.IntVal, "int-ptr", "", "int ptr usage")
 	StringPtrVarP(flags, &a.StringVal, "string-ptr", "", "string ptr usage")
+	Float64PtrVarP(flags, &a.FloatVal, "float-ptr", "", "float ptr usage")
 
 	require.Nil(t, a.BoolVal)
 	require.Nil(t, a.IntVal)
@@ -41,4 +43,9 @@ func Test_Ptr(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, a.StringVal)
 	require.Equal(t, "some-string", *a.StringVal)
+
+	err = flags.Set("float-ptr", "64.8")
+	require.NoError(t, err)
+	require.NotNil(t, a.FloatVal)
+	require.Equal(t, 64.8, *a.FloatVal)
 }
