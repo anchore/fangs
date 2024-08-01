@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
+	"dario.cat/mergo"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -17,6 +19,10 @@ func Load(cfg Config, cmd *cobra.Command, configurations ...any) error {
 }
 
 func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) error {
+	return Load(cfg, cmd, rootAt(cfg, configuration, path))
+}
+
+func rootAt(cfg Config, configuration any, path string) any {
 	t := reflect.TypeOf(configuration)
 	config := reflect.StructOf([]reflect.StructField{{
 		Name: upperFirst(path),
@@ -26,8 +32,7 @@ func LoadAt(cfg Config, cmd *cobra.Command, path string, configuration any) erro
 
 	value := reflect.New(config)
 	value.Elem().Field(0).Set(reflect.ValueOf(configuration))
-
-	return Load(cfg, cmd, value.Interface())
+	return value.Interface()
 }
 
 func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
@@ -35,10 +40,6 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	if cfg.Logger == nil || cfg.Finders == nil {
 		return fmt.Errorf("config.Load requires logger and finders to be set, but only has %+v", cfg)
 	}
-
-	// allow for nested options to be specified via environment variables
-	// e.g. pod.context = APPNAME_POD_CONTEXT
-	v := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
 
 	for _, configuration := range configurations {
 		if !isPtr(reflect.TypeOf(configuration)) {
@@ -50,18 +51,50 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	// flags have already been loaded into viper by command construction
 
 	// check if user specified config; otherwise read all possible paths
-	if err := readConfigFile(cfg, v); err != nil {
-		if isNotFoundErr(err) {
-			cfg.Logger.Debug("no config file found, using defaults")
-		} else {
-			return fmt.Errorf("unable to load config: %w", err)
-		}
+
+	files, err := eachConfigFile(cfg)
+	if err != nil {
+		return err
 	}
+
+	// allow for nested options to be specified via environment variables
+	// e.g. pod.context = APPNAME_POD_CONTEXT
+	var v = viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
 
 	// load environment variables
 	v.SetEnvPrefix(cfg.AppName)
 	v.AllowEmptyEnv(true)
 	v.AutomaticEnv()
+
+	for _, f := range files {
+		// allow for nested options to be specified via environment variables
+		// e.g. pod.context = APPNAME_POD_CONTEXT
+		newV := viper.NewWithOptions(viper.EnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_")))
+
+		// load environment variables
+		newV.SetEnvPrefix(cfg.AppName)
+		newV.AllowEmptyEnv(true)
+		newV.AutomaticEnv()
+
+		if err = readConfigFile(f, newV); err != nil {
+			if isNotFoundErr(err) {
+				cfg.Logger.Debug("no config file found, using defaults")
+			} else {
+				return fmt.Errorf("unable to load config: %w", err)
+			}
+		}
+
+		all := v.AllSettings()
+		incoming := newV.AllSettings()
+		err = mergo.Merge(&all, incoming, mergo.WithAppendSlice, mergo.WithOverride)
+		if err != nil {
+			return err
+		}
+		err = v.MergeConfigMap(all)
+		if err != nil {
+			return err
+		}
+	}
 
 	for _, configuration := range configurations {
 		configureViper(cfg, v, reflect.ValueOf(configuration), flags, []string{})
@@ -74,6 +107,19 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		})
 		if err != nil {
 			return err
+		}
+
+		for _, profileName := range cfg.Profiles {
+			profileRoot := rootAt(cfg, rootAt(cfg, configuration, profileName), "profiles")
+			// unmarshal fully populated viper object onto config
+			err = v.Unmarshal(profileRoot, func(dc *mapstructure.DecoderConfig) {
+				dc.TagName = cfg.TagName
+				// ZeroFields will use what is present in the config file instead of modifying existing defaults
+				dc.ZeroFields = true
+			})
+			if err != nil {
+				return err
+			}
 		}
 
 		// Convert all populated config options to their internal application values ex: scope string => scopeOpt source.Scope
@@ -179,25 +225,30 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	}
 }
 
-func readConfigFile(cfg Config, v *viper.Viper) error {
+func eachConfigFile(cfg Config) ([]string, error) {
+	var out []string
 	for _, finder := range cfg.Finders {
 		for _, file := range finder(cfg) {
 			if !fileExists(file) {
+				if slices.Contains(cfg.Files, file) {
+					return nil, fmt.Errorf("unable to find configuration file: %v", file)
+				}
 				continue
 			}
-			v.SetConfigFile(file)
-			err := v.ReadInConfig()
-			if isNotFoundErr(err) {
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			v.Set("config", v.ConfigFileUsed())
-			return nil
+			out = append(out, file)
 		}
 	}
-	return &viper.ConfigFileNotFoundError{}
+	return out, nil
+}
+
+func readConfigFile(file string, v *viper.Viper) error {
+	v.SetConfigFile(file)
+	err := v.ReadInConfig()
+	if err != nil {
+		return err
+	}
+	v.Set("config", v.ConfigFileUsed())
+	return nil
 }
 
 func postLoad(v reflect.Value) error {

@@ -1,0 +1,19 @@
+v: level-2
+sub:
+  sv: level-2
+
+profiles:
+  override:
+    v: level-override
+    sub:
+      sv: level-override
+
+    slice:
+      - string-array:
+          - v2.1-override
+          - v2.2-override
+
+slice:
+  - string-array:
+      - v2.1
+      - v2.2

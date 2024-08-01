@@ -3,6 +3,7 @@ module github.com/anchore/fangs
 go 1.19
 
 require (
+	dario.cat/mergo v1.0.0
 	github.com/adrg/xdg v0.5.0
 	github.com/anchore/go-logger v0.0.0-20230531193951-db5ae83e7dbe
 	github.com/google/go-cmp v0.6.0

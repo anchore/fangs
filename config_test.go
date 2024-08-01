@@ -32,7 +32,7 @@ func Test_EnvVarConfig(t *testing.T) {
 	t.Setenv("APPNAME_CONFIG", "some/config.env")
 
 	c := NewConfig("appName").WithConfigEnvVar()
-	require.Equal(t, c.File, "some/config.env")
+	require.Equal(t, c.Files, []string{"some/config.env"})
 
 	cmd := cobra.Command{}
 
@@ -42,5 +42,5 @@ func Test_EnvVarConfig(t *testing.T) {
 	// simulate the flag set
 	err := cmd.Flags().Set("config", "a/config.flag")
 	require.NoError(t, err)
-	require.Equal(t, c.File, "a/config.flag")
+	require.Equal(t, c.Files, []string{"a/config.flag"})
 }

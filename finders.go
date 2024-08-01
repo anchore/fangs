@@ -13,15 +13,19 @@ type Finder func(cfg Config) []string
 
 // FindDirect attempts to find a directly configured cfg.File
 func FindDirect(cfg Config) []string {
-	if cfg.File == "" {
-		return nil
+	var out []string
+	for _, f := range cfg.Files {
+		if f == "" {
+			return nil
+		}
+		file, err := homedir.Expand(f)
+		if err != nil {
+			cfg.Logger.Debugf("unable to expand path: %s", f)
+			file = f
+		}
+		out = append(out, file)
 	}
-	file, err := homedir.Expand(cfg.File)
-	if err != nil {
-		cfg.Logger.Debugf("unable to expand path: %s", cfg.File)
-		file = cfg.File
-	}
-	return []string{file}
+	return out
 }
 
 // FindConfigYamlInCwd looks for ./config.yaml -- NOTE: this is not part of the default behavior

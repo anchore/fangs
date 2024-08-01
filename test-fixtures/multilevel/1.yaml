@@ -1,0 +1,9 @@
+v: level-1
+sub:
+  sv: level-1
+
+
+slice:
+  - string-array:
+      - v1.1
+      - v1.2

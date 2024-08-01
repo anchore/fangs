@@ -39,13 +39,55 @@ func Test_LoadFromConfigFile(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	err = Load(cfg, cmd, r)
 	require.NoError(t, err)
 
 	require.Equal(t, "direct-config-sub-v", s.Sv)
 	require.Equal(t, "direct-config-v", r.V)
+}
+
+func Test_Multilevel(t *testing.T) {
+	cmd, cfg, r, _ := setup(t)
+
+	cfg.Files = []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"}
+
+	err := Load(cfg, cmd, r)
+	require.NoError(t, err)
+	require.Equal(t, "level-2", r.Sub.Sv)
+}
+
+func Test_Profile(t *testing.T) {
+	cmd, cfg, r, _ := setup(t)
+
+	cfg.Profiles = []string{"override"}
+	cfg.Files = []string{"test-fixtures/multilevel/2.yaml", "test-fixtures/multilevel/1.yaml"}
+
+	err := Load(cfg, cmd, r)
+	require.NoError(t, err)
+	require.Equal(t, "level-override", r.Sub.Sv)
+}
+
+func Test_MultilevelSlices(t *testing.T) {
+	cmd, cfg, _, _ := setup(t)
+
+	type slice struct {
+		StringArray []string `mapstructure:"string-array"`
+	}
+	type holder struct {
+		Slice []slice `mapstructure:"slice"`
+	}
+
+	r := &holder{}
+
+	cfg.Files = []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"}
+
+	err := Load(cfg, cmd, r)
+	require.NoError(t, err)
+	require.Len(t, r.Slice, 2)
+	require.Equal(t, "v1.1", r.Slice[0].StringArray[0])
+	require.Equal(t, "v2.1", r.Slice[1].StringArray[0])
 }
 
 func Test_LoadEmbeddedSquash(t *testing.T) {
@@ -121,7 +163,7 @@ func Test_LoadFromEnvOverridingConfigFile(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	err = Load(cfg, cmd, r)
 	require.NoError(t, err)
@@ -137,7 +179,7 @@ func Test_LoadSubStruct(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	err = LoadAt(cfg, cmd, "sub", s)
 	require.NoError(t, err)
@@ -150,7 +192,7 @@ func Test_LoadSubStructEnv(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	err = LoadAt(cfg, cmd, "sub", s)
 	require.NoError(t, err)
@@ -182,7 +224,7 @@ func Test_LoadFromFlagsOverridingAll(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	err = cmd.PersistentFlags().Set("v", "flag-value-v")
 	require.NoError(t, err)
@@ -399,7 +441,7 @@ func Test_AllFieldTypes(t *testing.T) {
 			}
 
 			cfg := NewConfig(appName)
-			cfg.File = "test-fixtures/all-values/app.yaml"
+			cfg.Files = []string{"test-fixtures/all-values/app.yaml"}
 
 			cmd := &cobra.Command{}
 
@@ -579,7 +621,7 @@ func Test_PostLoad(t *testing.T) {
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
-	cfg.File = path.Join(wd, "test-fixtures", "config.yaml")
+	cfg.Files = []string{path.Join(wd, "test-fixtures", "config.yaml")}
 
 	r := &rootPostLoad{
 		V: "default-v",
