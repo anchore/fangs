@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"dario.cat/mergo"
+	"github.com/mitchellh/go-homedir"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -47,15 +48,13 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		}
 	}
 
-	// priority order: viper.Set, flag, env, config, kv, defaults
-	// flags have already been loaded into viper by command construction
-
-	// check if user specified config; otherwise read all possible paths
-
-	files, err := eachConfigFile(cfg)
+	files, err := getConfigurationFiles(cfg)
 	if err != nil {
 		return err
 	}
+
+	// priority order: viper.Set, flag, env, config, kv, defaults
+	// flags have already been loaded into viper by command construction
 
 	// allow for nested options to be specified via environment variables
 	// e.g. pod.context = APPNAME_POD_CONTEXT
@@ -108,9 +107,16 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		if err != nil {
 			return err
 		}
+	}
 
+	// load profiles after base configuration, profile values always override base values
+
+	for _, configuration := range configurations {
 		for _, profileName := range cfg.Profiles {
 			profileRoot := rootAt(cfg, rootAt(cfg, configuration, profileName), "profiles")
+
+			configureViper(cfg, v, reflect.ValueOf(profileRoot), flags, []string{})
+
 			// unmarshal fully populated viper object onto config
 			err = v.Unmarshal(profileRoot, func(dc *mapstructure.DecoderConfig) {
 				dc.TagName = cfg.TagName
@@ -130,6 +136,40 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	}
 
 	return nil
+}
+
+// getConfigurationFiles returns the set of configuration files to use
+func getConfigurationFiles(cfg Config) (files []string, err error) {
+	files, err = loadExplicitConfiguration(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// only include files in search paths if direct configuration not specified
+	if len(cfg.Files) == 0 {
+		files, err = findAllConfigFiles(cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return files, nil
+}
+
+// loadExplicitConfiguration loads configuration files specified in cfg.Files
+// and verifies they exist
+func loadExplicitConfiguration(cfg Config) (files []string, err error) {
+	for _, f := range cfg.Files {
+		f, err = homedir.Expand(f)
+		if err != nil {
+			return nil, fmt.Errorf("unable to expand path: %s", f)
+		}
+		if !fileExists(f) {
+			return nil, fmt.Errorf("file does not exist: %v", f)
+		}
+		files = append(files, f)
+	}
+	return files, err
 }
 
 // configureViper loads the default configuration values into the viper instance,
@@ -225,7 +265,7 @@ func configureViper(cfg Config, vpr *viper.Viper, v reflect.Value, flags flagRef
 	}
 }
 
-func eachConfigFile(cfg Config) ([]string, error) {
+func findAllConfigFiles(cfg Config) ([]string, error) {
 	var out []string
 	for _, finder := range cfg.Finders {
 		for _, file := range finder(cfg) {
@@ -238,6 +278,8 @@ func eachConfigFile(cfg Config) ([]string, error) {
 			out = append(out, file)
 		}
 	}
+	// finders priority is precedence to the first
+	slices.Reverse(out)
 	return out, nil
 }
 
@@ -439,6 +481,7 @@ func isNil(v reflect.Value) bool {
 	switch v.Type().Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return v.IsNil()
+	default:
 	}
 	return false
 }

@@ -585,7 +585,6 @@ func Test_SummarizeLocations(t *testing.T) {
 	}
 
 	opts := []any{
-		"/my-app/config.yaml",
 		strings.Join(allExts(".app"), "\n"),
 		strings.Join(allExts(".app/config"), "\n"),
 		strings.Join(allExts("/home-dir/.app"), "\n"),

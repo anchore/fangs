@@ -29,8 +29,8 @@ func envVar(appName string, parts ...string) string {
 }
 
 func fileExists(name string) bool {
-	_, err := os.Stat(name)
-	return err == nil
+	fi, err := os.Stat(name)
+	return err == nil && !fi.IsDir()
 }
 
 // isPromotedMethod returns true if the method with the given name is promoted from

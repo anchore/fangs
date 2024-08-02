@@ -11,23 +11,6 @@ import (
 
 type Finder func(cfg Config) []string
 
-// FindDirect attempts to find a directly configured cfg.File
-func FindDirect(cfg Config) []string {
-	var out []string
-	for _, f := range cfg.Files {
-		if f == "" {
-			return nil
-		}
-		file, err := homedir.Expand(f)
-		if err != nil {
-			cfg.Logger.Debugf("unable to expand path: %s", f)
-			file = f
-		}
-		out = append(out, file)
-	}
-	return out
-}
-
 // FindConfigYamlInCwd looks for ./config.yaml -- NOTE: this is not part of the default behavior
 func FindConfigYamlInCwd(_ Config) []string {
 	return []string{"./config.yaml"}
