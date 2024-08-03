@@ -1,0 +1,26 @@
+name: top-name-1
+
+string-array:
+  - v1.1-top
+  - v1.2-top
+
+sub:
+  - sub-name: n1.1
+    sub-string-array:
+    - v1.1
+    - v1.2
+
+  - sub-name: n1.2
+    sub-string-array:
+    - v1.3
+    - v1.4
+
+holder:
+  name: holder-name-1
+
+profiles:
+  prof-1:
+    sub:
+      - sub-string-array:
+          - v1.1-prof-1-override
+          - v1.2-prof-1-override
