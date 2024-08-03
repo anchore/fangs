@@ -1,0 +1,31 @@
+name: top-name-3
+
+string-array:
+  - v3.1-top
+  - v3.2-top
+
+sub:
+  - sub-string-array:
+      - v3.1
+      - v3.2
+
+profiles:
+  prof-1:
+    string-array:
+      - v3.1-prof-1-override
+      - v3.2-prof-1-override
+    sub:
+      - sub-string-array:
+          - v3.1-prof-1-sub-override
+          - v3.2-prof-1-sub-override
+    holder:
+      name: "holder-name-3-prof-1-overide"
+
+  prof-3:
+    string-array:
+      - v3.1-prof-3-override
+      - v3.2-prof-3-override
+    sub:
+      - sub-string-array:
+          - v3.1-prof-3-sub-override
+          - v3.2-prof-3-sub-override

@@ -48,46 +48,65 @@ func Test_LoadFromConfigFile(t *testing.T) {
 	require.Equal(t, "direct-config-v", r.V)
 }
 
-func Test_Multilevel(t *testing.T) {
-	cmd, cfg, r, _ := setup(t)
-
-	cfg.Files = []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"}
-
-	err := Load(cfg, cmd, r)
-	require.NoError(t, err)
-	require.Equal(t, "level-2", r.Sub.Sv)
-}
-
-func Test_Profile(t *testing.T) {
+func Test_explicitConfigFileNotFoundErrors(t *testing.T) {
 	cmd, cfg, r, _ := setup(t)
 
 	cfg.Profiles = []string{"override"}
-	cfg.Files = []string{"test-fixtures/multilevel/2.yaml", "test-fixtures/multilevel/1.yaml"}
+	cfg.Files = []string{"test-fixtures/basic-profiles/3.yaml", "test-fixtures/multilevel/1.yaml"}
 
 	err := Load(cfg, cmd, r)
-	require.NoError(t, err)
-	require.Equal(t, "level-override", r.Sub.Sv)
+	require.ErrorContains(t, err, "not exist")
+
+	cfg.Files = []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/basic-profiles/3.yaml"}
+
+	err = Load(cfg, cmd, r)
+	require.ErrorContains(t, err, "not exist")
 }
 
-func Test_MultilevelSlices(t *testing.T) {
-	cmd, cfg, _, _ := setup(t)
+func Test_BasicMultilevelWithProfile(t *testing.T) {
+	cmd, cfg, r, _ := setup(t)
 
-	type slice struct {
-		StringArray []string `mapstructure:"string-array"`
-	}
-	type holder struct {
-		Slice []slice `mapstructure:"slice"`
-	}
-
-	r := &holder{}
-
-	cfg.Files = []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"}
+	// fixture 1 should take precedence, and arrays should be appended
+	cfg.Files = []string{"test-fixtures/basic-profiles/1.yaml", "test-fixtures/basic-profiles/2.yaml"}
 
 	err := Load(cfg, cmd, r)
 	require.NoError(t, err)
-	require.Len(t, r.Slice, 2)
-	require.Equal(t, "v1.1", r.Slice[0].StringArray[0])
-	require.Equal(t, "v2.1", r.Slice[1].StringArray[0])
+	require.Equal(t, "level-2-v", r.V)
+	require.Equal(t, "level-1-sv", r.Sub.Sv)
+
+	cfg.Profiles = []string{"my-profile-1"}
+	err = Load(cfg, cmd, r)
+	require.NoError(t, err)
+	require.Equal(t, "level-1-override", r.V)
+	require.Equal(t, "level-2-sub-sv-override", r.Sub.Sv)
+}
+
+func Test_InvalidProfileConfig(t *testing.T) {
+	cmd, cfg, r, _ := setup(t)
+	cfg.ProfileKey = ""
+
+	// fixture 1 should take precedence, and arrays should be appended
+	cfg.Files = []string{"test-fixtures/basic-profiles/1.yaml", "test-fixtures/basic-profiles/2.yaml"}
+	cfg.Profiles = []string{"a-profile"}
+
+	err := Load(cfg, cmd, r)
+	require.ErrorContains(t, err, "invalid configuration")
+}
+
+func Test_InvalidProfileRequested(t *testing.T) {
+	cmd, cfg, r, _ := setup(t)
+
+	// fixture 1 should take precedence, and arrays should be appended
+	cfg.Files = []string{"test-fixtures/basic-profiles/1.yaml", "test-fixtures/basic-profiles/2.yaml"}
+	cfg.Profiles = []string{"a-profile"}
+
+	err := Load(cfg, cmd, r)
+	require.ErrorContains(t, err, "profile not found")
+
+	cfg.Profiles = []string{"my-profile-1", "a-profile"}
+
+	err = Load(cfg, cmd, r)
+	require.ErrorContains(t, err, "profile not found")
 }
 
 func Test_LoadEmbeddedSquash(t *testing.T) {
@@ -737,6 +756,187 @@ func Test_EmbeddedPrivateStructPointer(t *testing.T) {
 
 	// https://github.com/mitchellh/mapstructure/blob/bf980b35cac4dfd34e05254ee5aba086504c3f96/mapstructure.go#L1338
 	assert.ErrorContains(t, err, "unsupported type for squash")
+}
+
+func Test_configVarSetToAllFiles(t *testing.T) {
+	cmd, cfg, _, _ := setup(t)
+	cfg.Files = []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"}
+
+	type hasConfigString struct {
+		Config string `mapstructure:"config"`
+	}
+
+	cstr := &hasConfigString{}
+	err := Load(cfg, cmd, cstr)
+	require.NoError(t, err)
+	require.Equal(t, strings.Join(cfg.Files, ","), cstr.Config)
+
+	type hasConfigSlice struct {
+		Config []string `mapstructure:"config"`
+	}
+
+	csls := &hasConfigSlice{}
+	err = Load(cfg, cmd, csls)
+	require.NoError(t, err)
+	require.Len(t, csls.Config, 3)
+	require.Equal(t, cfg.Files, csls.Config)
+}
+
+func Test_MultilevelAll(t *testing.T) {
+	type sub struct {
+		Name           string   `mapstructure:"sub-name"`
+		SubStringArray []string `mapstructure:"sub-string-array"`
+	}
+	type holder struct {
+		Name           string   `mapstructure:"name"`
+		Slice          []sub    `mapstructure:"sub"`
+		TopStringArray []string `mapstructure:"string-array"`
+		SubHolder      *holder  `mapstructure:"holder"`
+	}
+
+	tests := []struct {
+		name     string
+		files    []string
+		profiles []string
+		env      map[string]string
+		expected holder
+	}{
+		{
+			name:     "no profiles",
+			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{},
+			expected: holder{
+				Name:           "top-name-1",
+				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Slice: []sub{
+					{Name: "n1.1", SubStringArray: []string{"v1.1", "v1.2"}},
+					{Name: "n1.2", SubStringArray: []string{"v1.3", "v1.4"}},
+					{Name: "n2.1", SubStringArray: []string{"v2.1", "v2.2"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-1",
+				},
+			},
+		},
+		{
+			name:     "profile 1",
+			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{"prof-1"},
+			expected: holder{
+				Name:           "top-name-1",
+				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Slice: []sub{
+					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
+					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-1",
+				},
+			},
+		},
+		{
+			name:     "profile 2",
+			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{"prof-2"},
+			expected: holder{
+				Name:           "top-name-2-prof-2-override",
+				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Slice: []sub{
+					{SubStringArray: []string{"v2.1-prof-2-override", "v2.2-prof-2-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-1",
+				},
+			},
+		},
+		{
+			name:     "profile 3, 1 priority",
+			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml", "test-fixtures/multilevel/3.yaml"},
+			profiles: []string{"prof-3"},
+			expected: holder{
+				Name:           "top-name-1",
+				TopStringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
+				Slice: []sub{
+					{SubStringArray: []string{"v3.1-prof-3-sub-override", "v3.2-prof-3-sub-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-1",
+				},
+			},
+		},
+		{
+			name:     "profile 3, 3 priority",
+			files:    []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{"prof-3"},
+			expected: holder{
+				Name:           "top-name-3",
+				TopStringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
+				Slice: []sub{
+					{SubStringArray: []string{"v3.1-prof-3-sub-override", "v3.2-prof-3-sub-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-1",
+				},
+			},
+		},
+		{
+			name:     "profile 1, 3 priority",
+			files:    []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{"prof-1"},
+			expected: holder{
+				Name:           "top-name-3",
+				TopStringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
+				Slice: []sub{
+					{SubStringArray: []string{"v3.1-prof-1-sub-override", "v3.2-prof-1-sub-override"}},
+					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
+					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-3-prof-1-overide",
+				},
+			},
+		},
+		{
+			name:     "profile 1, 3 priority, with env",
+			files:    []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
+			profiles: []string{"prof-1"},
+			env: map[string]string{
+				"MY_APP_NAME":                 "name-from-env",
+				"MY_APP_PROFILES_PROF_1_NAME": "prof-1-name-from-env", // should NOT pick up an env var from a profile-nested key
+			},
+			expected: holder{
+				Name:           "name-from-env",
+				TopStringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
+				Slice: []sub{
+					{SubStringArray: []string{"v3.1-prof-1-sub-override", "v3.2-prof-1-sub-override"}},
+					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
+					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
+				},
+				SubHolder: &holder{
+					Name: "holder-name-3-prof-1-overide",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd, cfg, _, _ := setup(t)
+
+			got := &holder{}
+
+			for k, v := range test.env {
+				t.Setenv(k, v)
+			}
+
+			cfg.Files = test.files
+			cfg.Profiles = test.profiles
+
+			err := Load(cfg, cmd, got)
+			require.NoError(t, err)
+			require.Equal(t, &test.expected, got)
+		})
+	}
 }
 
 type rootPostLoad struct {

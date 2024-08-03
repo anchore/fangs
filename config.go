@@ -10,12 +10,16 @@ import (
 )
 
 type Config struct {
-	Logger   logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
-	AppName  string        `yaml:"-" json:"-" mapstructure:"-"`
-	TagName  string        `yaml:"-" json:"-" mapstructure:"-"`
-	Files    []string      `yaml:"-" json:"-" mapstructure:"-"`
-	Finders  []Finder      `yaml:"-" json:"-" mapstructure:"-"`
-	Profiles []string      `yaml:"-" json:"-" mapstructure:"-"`
+	Logger                 logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
+	AppName                string        `yaml:"-" json:"-" mapstructure:"-"`
+	TagName                string        `yaml:"-" json:"-" mapstructure:"-"`
+	ConfigureMultipleFiles bool          `yaml:"-" json:"-" mapstructure:"-"`
+	InheritMultipleFiles   bool          `yaml:"-" json:"-" mapstructure:"-"`
+	File                   string        `yaml:"-" json:"-" mapstructure:"-"`
+	Files                  []string      `yaml:"-" json:"-" mapstructure:"-"`
+	Finders                []Finder      `yaml:"-" json:"-" mapstructure:"-"`
+	ProfileKey             string        `yaml:"-" json:"-" mapstructure:"-"`
+	Profiles               []string      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 var _ FlagAdder = (*Config)(nil)
@@ -23,9 +27,12 @@ var _ FlagAdder = (*Config)(nil)
 // NewConfig creates a new Config object with defaults
 func NewConfig(appName string) Config {
 	return Config{
-		Logger:  discard.New(),
-		AppName: appName,
-		TagName: "mapstructure",
+		Logger:                 discard.New(),
+		AppName:                appName,
+		TagName:                "mapstructure",
+		ConfigureMultipleFiles: true,
+		InheritMultipleFiles:   true,
+		ProfileKey:             "profiles",
 		// search for configs in specific order
 		Finders: []Finder{
 			// 2. look for ./.<appname>.<ext>
@@ -48,6 +55,12 @@ func (c Config) WithConfigEnvVar() Config {
 }
 
 func (c *Config) AddFlags(flags FlagSet) {
-	flags.StringArrayVarP(&c.Files, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
-	flags.StringArrayVarP(&c.Profiles, "profiles", "", "configuration profiles to use")
+	if c.ConfigureMultipleFiles {
+		flags.StringArrayVarP(&c.Files, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+	} else {
+		flags.StringVarP(&c.File, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+	}
+	if c.ProfileKey != "" {
+		flags.StringArrayVarP(&c.Profiles, "config-profile", "", "configuration profiles to use")
+	}
 }
