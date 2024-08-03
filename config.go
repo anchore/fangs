@@ -50,7 +50,10 @@ func NewConfig(appName string) Config {
 // WithConfigEnvVar looks for the environment variable: <APP_NAME>_CONFIG as a way to specify a config file
 // This will be overridden by a command-line flag
 func (c Config) WithConfigEnvVar() Config {
-	c.Files = strings.Split(os.Getenv(envVar(c.AppName, "CONFIG")), ",")
+	envConfig := os.Getenv(envVar(c.AppName, "CONFIG"))
+	if envConfig != "" {
+		c.Files = strings.Split(envConfig, ",")
+	}
 	return c
 }
 

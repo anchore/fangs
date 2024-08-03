@@ -138,7 +138,7 @@ func newViper(cfg Config) *viper.Viper {
 func findConfigurationFiles(cfg Config) (files []string, err error) {
 	// load all explicitly configured files specified in cfg.File and cfg.Files and verify they exist
 	explicitFiles := cfg.Files
-	if !cfg.ConfigureMultipleFiles && cfg.File != "" {
+	if cfg.File != "" {
 		explicitFiles = append(explicitFiles, cfg.File)
 	}
 	for _, f := range explicitFiles {
