@@ -11,16 +11,20 @@ func Test_Ptr(t *testing.T) {
 	cmd := &cobra.Command{}
 
 	type typ struct {
-		BoolVal   *bool
-		IntVal    *int
-		StringVal *string
-		FloatVal  *float64
+		BoolVal    *bool
+		NotBoolVal *bool
+		IntVal     *int
+		StringVal  *string
+		FloatVal   *float64
 	}
 
-	a := &typ{}
+	a := &typ{
+		NotBoolVal: p(true),
+	}
 
 	flags := cmd.Flags()
 	BoolPtrVarP(flags, &a.BoolVal, "bool-ptr", "", "bool ptr usage")
+	BoolPtrVarP(flags, &a.NotBoolVal, "not-bool-ptr", "", "not bool ptr usage")
 	IntPtrVarP(flags, &a.IntVal, "int-ptr", "", "int ptr usage")
 	StringPtrVarP(flags, &a.StringVal, "string-ptr", "", "string ptr usage")
 	Float64PtrVarP(flags, &a.FloatVal, "float-ptr", "", "float ptr usage")
@@ -29,23 +33,27 @@ func Test_Ptr(t *testing.T) {
 	require.Nil(t, a.IntVal)
 	require.Nil(t, a.StringVal)
 
-	err := flags.Set("bool-ptr", "true")
+	err := flags.Parse([]string{
+		"--bool-ptr",
+		"--not-bool-ptr",
+		"--int-ptr", "17",
+		"--string-ptr", "some-string",
+		"--float-ptr", "64.8",
+	})
 	require.NoError(t, err)
+
 	require.NotNil(t, a.BoolVal)
 	require.Equal(t, true, *a.BoolVal)
 
-	err = flags.Set("int-ptr", "17")
-	require.NoError(t, err)
+	require.NotNil(t, a.NotBoolVal)
+	require.Equal(t, false, *a.NotBoolVal)
+
 	require.NotNil(t, a.IntVal)
 	require.Equal(t, 17, *a.IntVal)
 
-	err = flags.Set("string-ptr", "some-string")
-	require.NoError(t, err)
 	require.NotNil(t, a.StringVal)
 	require.Equal(t, "some-string", *a.StringVal)
 
-	err = flags.Set("float-ptr", "64.8")
-	require.NoError(t, err)
 	require.NotNil(t, a.FloatVal)
 	require.Equal(t, 64.8, *a.FloatVal)
 }
