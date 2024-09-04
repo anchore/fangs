@@ -39,7 +39,7 @@ func (b *boolPtr) Set(s string) error {
 }
 
 func (b *boolPtr) Type() string {
-	return "*bool"
+	return "bool"
 }
 
 var _ pflag.Value = (*boolPtr)(nil)
