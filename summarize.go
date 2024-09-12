@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/anchore/go-logger"
 )
+
+var trailingSpace = regexp.MustCompile(`[ \r]+\n`)
 
 func Summarize(cfg Config, descriptions DescriptionProvider, filter ValueFilterFunc, values ...any) string {
 	root := &section{}
@@ -22,6 +25,7 @@ func Summarize(cfg Config, descriptions DescriptionProvider, filter ValueFilterF
 			return s
 		}
 	}
+
 	return root.stringify(cfg, filter)
 }
 
@@ -268,7 +272,7 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 func (s *section) stringify(cfg Config, filter ValueFilterFunc) string {
 	out := &bytes.Buffer{}
 	stringifySection(cfg, filter, out, s, "")
-	return cleanWhiteSpace(out)
+	return trailingSpace.ReplaceAllString(out.String(), "\n")
 }
 
 func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *section, indent string) {
@@ -325,19 +329,4 @@ func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *
 			out.WriteString("\n")
 		}
 	}
-}
-
-func cleanWhiteSpace(buffer *bytes.Buffer) string {
-	content := buffer.String()
-
-	lines := strings.Split(content, "\n")
-
-	// Process each line to trim leading and trailing whitespace
-	var processedLines []string
-	for _, line := range lines {
-		// Trim leading and trailing whitespace
-		processedLines = append(processedLines, strings.TrimRight(line, " "))
-	}
-
-	return strings.Join(processedLines, "\n")
 }
