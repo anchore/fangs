@@ -272,6 +272,8 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 func (s *section) stringify(cfg Config, filter ValueFilterFunc) string {
 	out := &bytes.Buffer{}
 	stringifySection(cfg, filter, out, s, "")
+
+	// remove any extra trailing whitespace from final config
 	return trailingSpace.ReplaceAllString(out.String(), "\n")
 }
 
