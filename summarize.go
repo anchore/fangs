@@ -336,26 +336,7 @@ func cleanWhiteSpace(buffer *bytes.Buffer) string {
 	var processedLines []string
 	for _, line := range lines {
 		// Trim leading and trailing whitespace
-		trimmedLine := strings.TrimSpace(line)
-
-		// Preserve indentation by re-calculating indentation and re-adding it
-		if len(trimmedLine) > 0 {
-			// Calculate the leading spaces (indentation)
-			indentation := ""
-			for _, char := range line {
-				if char == ' ' {
-					indentation += " "
-				} else {
-					break
-				}
-			}
-
-			// Rebuild the line with preserved indentation but no trailing spaces
-			processedLines = append(processedLines, indentation+trimmedLine)
-		} else {
-			// Keep empty lines intact
-			processedLines = append(processedLines, "")
-		}
+		processedLines = append(processedLines, strings.TrimRight(line, " "))
 	}
 
 	return strings.Join(processedLines, "\n")
