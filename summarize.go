@@ -268,7 +268,7 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 func (s *section) stringify(cfg Config, filter ValueFilterFunc) string {
 	out := &bytes.Buffer{}
 	stringifySection(cfg, filter, out, s, "")
-	return cleanContent(out)
+	return cleanWhiteSpace(out)
 }
 
 func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *section, indent string) {
@@ -327,7 +327,7 @@ func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *
 	}
 }
 
-func cleanContent(buffer *bytes.Buffer) string {
+func cleanWhiteSpace(buffer *bytes.Buffer) string {
 	content := buffer.String()
 
 	lines := strings.Split(content, "\n")
