@@ -328,10 +328,8 @@ func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *
 }
 
 func cleanContent(buffer *bytes.Buffer) string {
-	// Convert buffer to string
 	content := buffer.String()
 
-	// Split the content into lines
 	lines := strings.Split(content, "\n")
 
 	// Process each line to trim leading and trailing whitespace
@@ -360,11 +358,5 @@ func cleanContent(buffer *bytes.Buffer) string {
 		}
 	}
 
-	// Join the lines back into a single string
-	cleanContent := strings.Join(processedLines, "\n")
-
-	// Convert the cleaned content back to a buffer
-	cleanBuffer := bytes.NewBufferString(cleanContent)
-
-	return cleanBuffer.String()
+	return strings.Join(processedLines, "\n")
 }
