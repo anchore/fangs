@@ -268,7 +268,7 @@ func (s *section) add(log logger.Logger, name string, value reflect.Value, descr
 func (s *section) stringify(cfg Config, filter ValueFilterFunc) string {
 	out := &bytes.Buffer{}
 	stringifySection(cfg, filter, out, s, "")
-	return out.String()
+	return cleanContent(out)
 }
 
 func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *section, indent string) {
@@ -325,4 +325,46 @@ func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *
 			out.WriteString("\n")
 		}
 	}
+}
+
+func cleanContent(buffer *bytes.Buffer) string {
+	// Convert buffer to string
+	content := string(buffer.String())
+
+	// Split the content into lines
+	lines := strings.Split(content, "\n")
+
+	// Process each line to trim leading and trailing whitespace
+	var processedLines []string
+	for _, line := range lines {
+		// Trim leading and trailing whitespace
+		trimmedLine := strings.TrimSpace(line)
+
+		// Preserve indentation by re-calculating indentation and re-adding it
+		if len(trimmedLine) > 0 {
+			// Calculate the leading spaces (indentation)
+			indentation := ""
+			for _, char := range line {
+				if char == ' ' {
+					indentation += " "
+				} else {
+					break
+				}
+			}
+
+			// Rebuild the line with preserved indentation but no trailing spaces
+			processedLines = append(processedLines, indentation+trimmedLine)
+		} else {
+			// Keep empty lines intact
+			processedLines = append(processedLines, "")
+		}
+	}
+
+	// Join the lines back into a single string
+	cleanContent := strings.Join(processedLines, "\n")
+
+	// Convert the cleaned content back to a buffer
+	cleanBuffer := bytes.NewBufferString(cleanContent)
+
+	return cleanBuffer.String()
 }
