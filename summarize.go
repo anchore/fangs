@@ -329,7 +329,7 @@ func stringifySection(cfg Config, filter ValueFilterFunc, out *bytes.Buffer, s *
 
 func cleanContent(buffer *bytes.Buffer) string {
 	// Convert buffer to string
-	content := string(buffer.String())
+	content := buffer.String()
 
 	// Split the content into lines
 	lines := strings.Split(content, "\n")
