@@ -77,7 +77,9 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 		}
 
 		// Convert all populated config options to their internal application values ex: scope string => scopeOpt source.Scope
-		err = postLoad(reflect.ValueOf(configuration))
+		err = InvokeAll(configuration, func(loader PostLoader) error {
+			return loader.PostLoad()
+		}, InvokeAllRequirePtr)
 		if err != nil {
 			return err
 		}
@@ -200,129 +202,6 @@ func readConfigFile(cfg Config, v *viper.Viper) error {
 	return &viper.ConfigFileNotFoundError{}
 }
 
-func postLoad(v reflect.Value) error {
-	t := v.Type()
-
-	for isPtr(t) {
-		if v.IsNil() {
-			return nil
-		}
-
-		if v.CanInterface() {
-			obj := v.Interface()
-			if p, ok := obj.(PostLoader); ok && !isPromotedMethod(obj, "PostLoad") {
-				if err := p.PostLoad(); err != nil {
-					return err
-				}
-			}
-		}
-		t = t.Elem()
-		v = v.Elem()
-	}
-
-	switch {
-	case isStruct(t):
-		return postLoadStruct(v)
-	case isSlice(t):
-		return postLoadSlice(v)
-	case isMap(t):
-		return postLoadMap(v)
-	}
-
-	return nil
-}
-
-// postLoadStruct call recursively on struct fields
-func postLoadStruct(v reflect.Value) error {
-	t := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		f := t.Field(i)
-		if !includeField(f) {
-			continue
-		}
-
-		v := v.Field(i)
-
-		if isNil(v) {
-			continue
-		}
-
-		for isPtr(v.Type()) {
-			v = v.Elem()
-		}
-
-		if !v.CanAddr() {
-			continue
-		}
-
-		if err := postLoad(v.Addr()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// postLoadSlice call recursively on slice items
-func postLoadSlice(v reflect.Value) error {
-	for i := 0; i < v.Len(); i++ {
-		v := v.Index(i)
-
-		if isNil(v) {
-			continue
-		}
-
-		for isPtr(v.Type()) {
-			v = v.Elem()
-		}
-
-		if !v.CanAddr() {
-			continue
-		}
-
-		if err := postLoad(v.Addr()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// postLoadMap call recursively on map values
-func postLoadMap(v reflect.Value) error {
-	mapV := v
-	i := v.MapRange()
-	for i.Next() {
-		v := i.Value()
-
-		if isNil(v) {
-			continue
-		}
-
-		for isPtr(v.Type()) {
-			v = v.Elem()
-		}
-
-		if !v.CanAddr() {
-			// unable to call .Addr() on struct map entries, so copy to a new instance and set on the map
-			if isStruct(v.Type()) {
-				newV := reflect.New(v.Type())
-				newV.Elem().Set(v)
-				if err := postLoad(newV); err != nil {
-					return err
-				}
-				mapV.SetMapIndex(i.Key(), newV.Elem())
-			}
-
-			continue
-		}
-
-		if err := postLoad(v.Addr()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type flagRefs map[uintptr]*pflag.Flag
 
 func commandFlagRefs(cmd *cobra.Command) flagRefs {
@@ -388,8 +267,9 @@ func isNil(v reflect.Value) bool {
 	switch v.Type().Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return v.IsNil()
+	default:
+		return false
 	}
-	return false
 }
 
 func isNotFoundErr(err error) bool {

@@ -10,7 +10,7 @@ import (
 
 func Test_isPromotedMethod(t *testing.T) {
 	s1 := &Sub2{}
-	require.True(t, !isPromotedMethod(s1, "AddFlags"))
+	require.True(t, !isPromotedMethod(reflect.ValueOf(s1), "AddFlags"))
 
 	type Ty1 struct {
 		Something string
@@ -18,14 +18,14 @@ func Test_isPromotedMethod(t *testing.T) {
 	}
 
 	t1 := &Ty1{}
-	require.True(t, isPromotedMethod(t1, "AddFlags"))
+	require.True(t, isPromotedMethod(reflect.ValueOf(t1), "AddFlags"))
 
 	type Ty2 struct {
 		Ty1
 	}
 
 	t2 := &Ty2{}
-	require.True(t, isPromotedMethod(t2, "AddFlags"))
+	require.True(t, isPromotedMethod(reflect.ValueOf(t2), "AddFlags"))
 
 	// reflect-created structs do not include promoted methods
 	tt1 := reflect.TypeOf(t1)
@@ -36,5 +36,5 @@ func Test_isPromotedMethod(t *testing.T) {
 
 	assert.False(t, ok)
 	// not a promoted method because the method doesn't exist on the struct
-	require.True(t, !isPromotedMethod(t3, "AddFlags"))
+	require.True(t, !isPromotedMethod(reflect.ValueOf(t3), "AddFlags"))
 }
