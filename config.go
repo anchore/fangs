@@ -3,17 +3,23 @@ package fangs
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/anchore/go-logger"
 	"github.com/anchore/go-logger/adapter/discard"
 )
 
 type Config struct {
-	Logger  logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
-	AppName string        `yaml:"-" json:"-" mapstructure:"-"`
-	TagName string        `yaml:"-" json:"-" mapstructure:"-"`
-	File    string        `yaml:"-" json:"-" mapstructure:"-"`
-	Finders []Finder      `yaml:"-" json:"-" mapstructure:"-"`
+	Logger                 logger.Logger `yaml:"-" json:"-" mapstructure:"-"`
+	AppName                string        `yaml:"-" json:"-" mapstructure:"-"`
+	TagName                string        `yaml:"-" json:"-" mapstructure:"-"`
+	ConfigureMultipleFiles bool          `yaml:"-" json:"-" mapstructure:"-"`
+	InheritMultipleFiles   bool          `yaml:"-" json:"-" mapstructure:"-"`
+	File                   string        `yaml:"-" json:"-" mapstructure:"-"`
+	Files                  []string      `yaml:"-" json:"-" mapstructure:"-"`
+	Finders                []Finder      `yaml:"-" json:"-" mapstructure:"-"`
+	ProfileKey             string        `yaml:"-" json:"-" mapstructure:"-"`
+	Profiles               []string      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 var _ FlagAdder = (*Config)(nil)
@@ -21,13 +27,14 @@ var _ FlagAdder = (*Config)(nil)
 // NewConfig creates a new Config object with defaults
 func NewConfig(appName string) Config {
 	return Config{
-		Logger:  discard.New(),
-		AppName: appName,
-		TagName: "mapstructure",
+		Logger:                 discard.New(),
+		AppName:                appName,
+		TagName:                "mapstructure",
+		ConfigureMultipleFiles: true,
+		InheritMultipleFiles:   true,
+		ProfileKey:             "profiles",
 		// search for configs in specific order
 		Finders: []Finder{
-			// 1. look for a directly configured file
-			FindDirect,
 			// 2. look for ./.<appname>.<ext>
 			FindInCwd,
 			// 3. look for ./.<appname>/config.<ext>
@@ -43,10 +50,20 @@ func NewConfig(appName string) Config {
 // WithConfigEnvVar looks for the environment variable: <APP_NAME>_CONFIG as a way to specify a config file
 // This will be overridden by a command-line flag
 func (c Config) WithConfigEnvVar() Config {
-	c.File = os.Getenv(envVar(c.AppName, "CONFIG"))
+	envConfig := os.Getenv(envVar(c.AppName, "CONFIG"))
+	if envConfig != "" {
+		c.Files = strings.Split(envConfig, ",")
+	}
 	return c
 }
 
 func (c *Config) AddFlags(flags FlagSet) {
-	flags.StringVarP(&c.File, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+	if c.ConfigureMultipleFiles {
+		flags.StringArrayVarP(&c.Files, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+	} else {
+		flags.StringVarP(&c.File, "config", "c", fmt.Sprintf("%s configuration file", c.AppName))
+	}
+	if c.ProfileKey != "" {
+		flags.StringArrayVarP(&c.Profiles, "config-profile", "", "configuration profiles to use")
+	}
 }
