@@ -60,11 +60,11 @@ Type0: 'type0 val'
 s2-0:
   # field 1 usage (env: APP_S2_0_FIELD1)
   Field1: 10
-  
+
   # field2 described
   # multiline (env: APP_S2_0_FIELD2)
   Field2: true
-  
+
 # described name (env: APP_NAME)
 Name: 's1 name'
 
@@ -74,11 +74,11 @@ Type: 's1 type'
 s2:
   # field 1 usage (env: APP_S2_FIELD1)
   Field1: 11
-  
+
   # field2 described
   # multiline (env: APP_S2_FIELD2)
   Field2: false
-  
+
 `, s)
 }
 
@@ -191,32 +191,32 @@ val-tsub1: 0
 TSub2:
   # sub2-name command description (env: APP_TSUB2_NAME_TSUB2)
   name-tsub2: ''
-  
+
   # val2 inline tag description (env: APP_TSUB2_VAL)
   Val: 0
-  
+
 sub3:
   # (env: APP_SUB3_NAME_TSUB3)
   name-tsub3: ''
-  
+
   # sub3-val manual description (env: APP_SUB3_VAL)
   Val: 0
-  
+
 sub4:
   TSub1:
     # (env: APP_SUB4_TSUB1_NAME)
     Name: ''
-    
+
     # val1 inline tag description (env: APP_SUB4_TSUB1_VAL_TSUB1)
     val-tsub1: 0
-    
+
   Sub2:
     # (env: APP_SUB4_SUB2_NAME_TSUB2)
     name-tsub2: ''
-    
+
     # val2 inline tag description (env: APP_SUB4_SUB2_VAL)
     Val: 0
-    
+
 `, s)
 }
 
@@ -325,28 +325,28 @@ summarize1-val: 0
 ptr:
   # summarize2-name command description (env: MY_APP_PTR_SUMMARIZE2_NAME)
   summarize2-name: 'summarize2 name'
-  
+
   # val 2 description (env: MY_APP_PTR_VAL)
   Val: 2
-  
+
 nil:
   # summarize3-name command description (env: MY_APP_NIL_SUMMARIZE3_NAME)
   summarize3-name: ''
-  
+
   # val 2 description (env: MY_APP_NIL_VAL)
   Val: 0
-  
+
 # (env: MY_APP_STRINGSLICE)
-StringSlice: 
+StringSlice:
   - 's1'
   - 's2'
 
-SubSlice: 
+SubSlice:
   - SubValue: 'sv1'
     IntSlice: []
 
   - SubValue: 'sv2'
-    IntSlice: 
+    IntSlice:
       - 3
       - 2
       - 1
@@ -446,10 +446,10 @@ value: false
 field:
   # (env: APP_FIELD_VALUE)
   value: false
-  
+
   # (env: APP_FIELD_SECONDARY)
   secondary: false
-  
+
 `
 	assert.Equal(t, expected, s)
 }
@@ -474,10 +474,10 @@ value: false
 field:
   # (env: APP_FIELD_VALUE)
   value: false
-  
+
   # (env: APP_FIELD_SECONDARY)
   secondary: false
-  
+
 `
 	assert.Equal(t, expected, s)
 }
@@ -502,10 +502,10 @@ value: false
 field:
   # (env: APP_FIELD_VALUE)
   value: false
-  
+
   # (env: APP_FIELD_SECONDARY)
   secondary: false
-  
+
 `
 	assert.Equal(t, expected, s)
 }
@@ -532,7 +532,7 @@ something: false
 field:
   # (env: APP_FIELD_SECONDARY)
   secondary: false
-  
+
 `
 	assert.Equal(t, expected, s)
 }
