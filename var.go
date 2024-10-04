@@ -39,16 +39,21 @@ func (b *boolPtr) Set(s string) error {
 }
 
 func (b *boolPtr) Type() string {
-	return "*bool"
+	return "bool"
 }
 
 var _ pflag.Value = (*boolPtr)(nil)
 
 // BoolPtrVarP adds a boolean pointer flag with no default
 func BoolPtrVarP(flags *pflag.FlagSet, ptr **bool, name string, short string, usage string) {
-	flags.VarP(&boolPtr{
+	flag := flags.VarPF(&boolPtr{
 		value: ptr,
 	}, name, short, usage)
+	if *ptr == nil || !**ptr {
+		flag.NoOptDefVal = "true"
+	} else {
+		flag.NoOptDefVal = "false"
+	}
 }
 
 // stringPtr is a pointer to a string pointer field within a struct
