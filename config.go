@@ -3,7 +3,6 @@ package fangs
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/anchore/go-logger"
 	"github.com/anchore/go-logger/adapter/discard"
@@ -64,7 +63,7 @@ func NewConfig(appName string) Config {
 func (c Config) WithConfigEnvVar() Config {
 	envConfig := os.Getenv(envVar(c.AppName, "CONFIG"))
 	if envConfig != "" {
-		c.Files = strings.Split(envConfig, ",")
+		c.Files = Flatten(envConfig)
 	}
 	return c
 }

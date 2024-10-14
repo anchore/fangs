@@ -10,7 +10,7 @@ import (
 
 // Flatten takes multiple entries and creates a "flattened" list by further splitting
 // comma-separated entries and removing empty entries
-func Flatten(commaSeparatedEntries []string) []string {
+func Flatten(commaSeparatedEntries ...string) []string {
 	var out []string
 	for _, v := range commaSeparatedEntries {
 		for _, s := range strings.Split(v, ",") {

@@ -83,7 +83,7 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 // or found in search paths, returning files in precedence order
 func findConfigurationFiles(cfg Config) (files []string, err error) {
 	// load all explicitly configured files specified in cfg.Files and verify they exist
-	for _, f := range Flatten(cfg.Files) {
+	for _, f := range Flatten(cfg.Files...) {
 		f, err = homedir.Expand(f)
 		if err != nil {
 			return nil, fmt.Errorf("unable to expand path: %s", f)
@@ -93,7 +93,7 @@ func findConfigurationFiles(cfg Config) (files []string, err error) {
 		}
 		files = append(files, f)
 		if len(files) > 1 && !cfg.MultiFile {
-			return nil, fmt.Errorf("multiple configuration files not allowed; got: %v", Flatten(cfg.Files))
+			return nil, fmt.Errorf("multiple configuration files not allowed; got: %v", Flatten(cfg.Files...))
 		}
 	}
 
@@ -186,7 +186,7 @@ func mergeProfiles(cfg Config, v *viper.Viper) error {
 	if !ok || profiles == nil {
 		return fmt.Errorf("'%v' not found in any configuration files", cfg.ProfileKey)
 	}
-	for _, profileName := range Flatten(cfg.Profiles) {
+	for _, profileName := range Flatten(cfg.Profiles...) {
 		profileVals, ok := profiles[profileName].(map[string]any)
 		if !ok || profileVals == nil {
 			// profile not defined, consider this an error as the user explicitly requested it and probably mistyped
