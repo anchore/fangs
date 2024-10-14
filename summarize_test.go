@@ -572,7 +572,7 @@ func Test_SummarizeLocations(t *testing.T) {
 	xdg.Reload()
 
 	cfg := NewConfig("app")
-	cfg.File = "/my-app/config.yaml"
+	cfg.Files = []string{"/my-app/config.yaml"}
 
 	locations := SummarizeLocations(cfg)
 	got := strings.Join(locations, "\n")
@@ -585,7 +585,6 @@ func Test_SummarizeLocations(t *testing.T) {
 	}
 
 	opts := []any{
-		"/my-app/config.yaml",
 		strings.Join(allExts(".app"), "\n"),
 		strings.Join(allExts(".app/config"), "\n"),
 		strings.Join(allExts("/home-dir/.app"), "\n"),
