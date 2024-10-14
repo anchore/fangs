@@ -79,6 +79,45 @@ func loadConfig(cfg Config, flags flagRefs, configurations ...any) error {
 	return nil
 }
 
+// findConfigurationFiles returns the set of configuration files to use, either directly configured
+// or found in search paths, returning files in precedence order
+func findConfigurationFiles(cfg Config) (files []string, err error) {
+	// load all explicitly configured files specified in cfg.Files and verify they exist
+	for _, f := range Flatten(cfg.Files) {
+		f, err = homedir.Expand(f)
+		if err != nil {
+			return nil, fmt.Errorf("unable to expand path: %s", f)
+		}
+		if !fileExists(f) {
+			return nil, fmt.Errorf("file does not exist: %v", f)
+		}
+		files = append(files, f)
+		if len(files) > 1 && !cfg.MultiFile {
+			return nil, fmt.Errorf("multiple configuration files not allowed; got: %v", Flatten(cfg.Files))
+		}
+	}
+
+	// only include files in search paths if direct configuration not specified
+	if len(files) > 0 {
+		return files, nil
+	}
+
+	for _, finder := range cfg.Finders {
+		for _, file := range finder(cfg) {
+			if !fileExists(file) {
+				continue
+			}
+			files = append(files, file)
+			if !cfg.MultiFile {
+				// if not allowing implicit config inheritance, just return the first file
+				return files, nil
+			}
+		}
+	}
+
+	return files, nil
+}
+
 // readConfigurationFiles reads all configurations, appending slice values
 func readConfigurationFiles(cfg Config, files []string) (v *viper.Viper, err error) {
 	v = newViper(cfg)
@@ -133,46 +172,6 @@ func newViper(cfg Config) *viper.Viper {
 	return v
 }
 
-// findConfigurationFiles returns the set of configuration files to use, either directly configured
-// or found in search paths, returning files in precedence order
-func findConfigurationFiles(cfg Config) (files []string, err error) {
-	// load all explicitly configured files specified in cfg.File and cfg.Files and verify they exist
-	explicitFiles := cfg.Files
-	if cfg.File != "" {
-		explicitFiles = append(explicitFiles, cfg.File)
-	}
-	for _, f := range explicitFiles {
-		f, err = homedir.Expand(f)
-		if err != nil {
-			return nil, fmt.Errorf("unable to expand path: %s", f)
-		}
-		if !fileExists(f) {
-			return nil, fmt.Errorf("file does not exist: %v", f)
-		}
-		files = append(files, f)
-	}
-
-	// only include files in search paths if direct configuration not specified
-	if len(files) > 0 {
-		return files, nil
-	}
-
-	for _, finder := range cfg.Finders {
-		for _, file := range finder(cfg) {
-			if !fileExists(file) {
-				continue
-			}
-			files = append(files, file)
-			if !cfg.InheritMultipleFiles {
-				// if not allowing implicit config inheritance, just return the first file
-				return files, nil
-			}
-		}
-	}
-
-	return files, nil
-}
-
 // mergeProfiles merges profile sections in the viper config map to appropriate locations in the top-level configuration
 func mergeProfiles(cfg Config, v *viper.Viper) error {
 	if len(cfg.Profiles) == 0 {
@@ -187,7 +186,7 @@ func mergeProfiles(cfg Config, v *viper.Viper) error {
 	if !ok || profiles == nil {
 		return fmt.Errorf("'%v' not found in any configuration files", cfg.ProfileKey)
 	}
-	for _, profileName := range cfg.Profiles {
+	for _, profileName := range Flatten(cfg.Profiles) {
 		profileVals, ok := profiles[profileName].(map[string]any)
 		if !ok || profileVals == nil {
 			// profile not defined, consider this an error as the user explicitly requested it and probably mistyped

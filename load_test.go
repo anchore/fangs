@@ -66,7 +66,7 @@ func Test_explicitConfigFileNotFoundErrors(t *testing.T) {
 func Test_BasicMultilevelWithProfile(t *testing.T) {
 	cmd, cfg, r, _ := setup(t)
 
-	// fixture 1 should take precedence, and arrays should be appended
+	// fixture 1 should take precedence, and arrays should be appended with fixture 1 first
 	cfg.Files = []string{"test-fixtures/basic-profiles/1.yaml", "test-fixtures/basic-profiles/2.yaml"}
 
 	err := Load(cfg, cmd, r)
@@ -74,6 +74,7 @@ func Test_BasicMultilevelWithProfile(t *testing.T) {
 	require.Equal(t, "level-2-v", r.V)
 	require.Equal(t, "level-1-sv", r.Sub.Sv)
 
+	// when profile specified, profile overrides should be applied, with those from fixture 1 first and fixture 2 appended
 	cfg.Profiles = []string{"my-profile-1"}
 	err = Load(cfg, cmd, r)
 	require.NoError(t, err)
@@ -788,10 +789,10 @@ func Test_MultilevelAll(t *testing.T) {
 		SubStringArray []string `mapstructure:"sub-string-array"`
 	}
 	type holder struct {
-		Name           string   `mapstructure:"name"`
-		Slice          []sub    `mapstructure:"sub"`
-		TopStringArray []string `mapstructure:"string-array"`
-		SubHolder      *holder  `mapstructure:"holder"`
+		Name        string   `mapstructure:"name"`
+		Sub         []sub    `mapstructure:"sub"`
+		StringArray []string `mapstructure:"string-array"`
+		SubHolder   *holder  `mapstructure:"holder"`
 	}
 
 	tests := []struct {
@@ -806,9 +807,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
 			profiles: []string{},
 			expected: holder{
-				Name:           "top-name-1",
-				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
-				Slice: []sub{
+				Name:        "top-name-1",
+				StringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Sub: []sub{
 					{Name: "n1.1", SubStringArray: []string{"v1.1", "v1.2"}},
 					{Name: "n1.2", SubStringArray: []string{"v1.3", "v1.4"}},
 					{Name: "n2.1", SubStringArray: []string{"v2.1", "v2.2"}},
@@ -823,9 +824,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
 			profiles: []string{"prof-1"},
 			expected: holder{
-				Name:           "top-name-1",
-				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
-				Slice: []sub{
+				Name:        "top-name-1",
+				StringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Sub: []sub{
 					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
 					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
 				},
@@ -839,9 +840,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
 			profiles: []string{"prof-2"},
 			expected: holder{
-				Name:           "top-name-2-prof-2-override",
-				TopStringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
-				Slice: []sub{
+				Name:        "top-name-2-prof-2-override",
+				StringArray: []string{"v1.1-top", "v1.2-top", "v2.1-top", "v2.2-top"},
+				Sub: []sub{
 					{SubStringArray: []string{"v2.1-prof-2-override", "v2.2-prof-2-override"}},
 				},
 				SubHolder: &holder{
@@ -854,9 +855,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml", "test-fixtures/multilevel/3.yaml"},
 			profiles: []string{"prof-3"},
 			expected: holder{
-				Name:           "top-name-1",
-				TopStringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
-				Slice: []sub{
+				Name:        "top-name-1",
+				StringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
+				Sub: []sub{
 					{SubStringArray: []string{"v3.1-prof-3-sub-override", "v3.2-prof-3-sub-override"}},
 				},
 				SubHolder: &holder{
@@ -869,9 +870,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
 			profiles: []string{"prof-3"},
 			expected: holder{
-				Name:           "top-name-3",
-				TopStringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
-				Slice: []sub{
+				Name:        "top-name-3",
+				StringArray: []string{"v3.1-prof-3-override", "v3.2-prof-3-override"},
+				Sub: []sub{
 					{SubStringArray: []string{"v3.1-prof-3-sub-override", "v3.2-prof-3-sub-override"}},
 				},
 				SubHolder: &holder{
@@ -884,9 +885,9 @@ func Test_MultilevelAll(t *testing.T) {
 			files:    []string{"test-fixtures/multilevel/3.yaml", "test-fixtures/multilevel/1.yaml", "test-fixtures/multilevel/2.yaml"},
 			profiles: []string{"prof-1"},
 			expected: holder{
-				Name:           "top-name-3",
-				TopStringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
-				Slice: []sub{
+				Name:        "top-name-3",
+				StringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
+				Sub: []sub{
 					{SubStringArray: []string{"v3.1-prof-1-sub-override", "v3.2-prof-1-sub-override"}},
 					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
 					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
@@ -905,9 +906,9 @@ func Test_MultilevelAll(t *testing.T) {
 				"MY_APP_PROFILES_PROF_1_NAME": "prof-1-name-from-env", // should NOT pick up an env var from a profile-nested key
 			},
 			expected: holder{
-				Name:           "name-from-env",
-				TopStringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
-				Slice: []sub{
+				Name:        "name-from-env",
+				StringArray: []string{"v3.1-prof-1-override", "v3.2-prof-1-override"},
+				Sub: []sub{
 					{SubStringArray: []string{"v3.1-prof-1-sub-override", "v3.2-prof-1-sub-override"}},
 					{SubStringArray: []string{"v1.1-prof-1-override", "v1.2-prof-1-override"}},
 					{SubStringArray: []string{"v2.1-prof-1-override", "v2.2-prof-1-override"}},
