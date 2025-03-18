@@ -2,10 +2,10 @@ package fangs
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/adrg/xdg"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
@@ -28,7 +28,7 @@ func FindInAppNameSubdir(cfg Config) []string {
 
 // FindInHomeDir looks for ~/.<appname>.<ext>
 func FindInHomeDir(cfg Config) []string {
-	home, err := homedir.Dir()
+	home, err := os.UserHomeDir()
 	if err != nil {
 		cfg.Logger.Debugf("unable to determine home dir: %w", err)
 		return nil

@@ -4,11 +4,7 @@ inputs:
   go-version:
     description: "Go version to install"
     required: true
-    default: "1.21.x"
-  use-go-cache:
-    description: "Restore go cache"
-    required: true
-    default: "true"
+    default: "1.24.x"
   cache-key-prefix:
     description: "Prefix all cache keys with this value"
     required: true
@@ -17,29 +13,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+      if: inputs.go-version != ''
       with:
         go-version: ${{ inputs.go-version }}
 
     - name: Restore tool cache
       id: tool-cache
-      uses: actions/cache@v3
+      uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
       with:
         path: ${{ github.workspace }}/.tmp
         key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-tool-${{ hashFiles('Makefile') }}
-
-    # note: we need to keep restoring the go mod cache before bootstrapping tools since `go install` is used in
-    # some installations of project tools.
-    - name: Restore go module cache
-      id: go-mod-cache
-      if: inputs.use-go-cache == 'true'
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/go/pkg/mod
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-go-${{ inputs.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-go-${{ inputs.go-version }}-
 
     - name: (cache-miss) Bootstrap project tools
       shell: bash
@@ -48,5 +32,4 @@ runs:
 
     - name: (cache-miss) Bootstrap go dependencies
       shell: bash
-      if: steps.go-mod-cache.outputs.cache-hit != 'true' && inputs.use-go-cache == 'true'
       run: make bootstrap-go
