@@ -2,11 +2,12 @@ package fangs
 
 import (
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/adrg/xdg"
 	"github.com/spf13/viper"
+
+	"github.com/anchore/go-homedir"
 )
 
 type Finder func(cfg Config) []string
@@ -28,7 +29,7 @@ func FindInAppNameSubdir(cfg Config) []string {
 
 // FindInHomeDir looks for ~/.<appname>.<ext>
 func FindInHomeDir(cfg Config) []string {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		cfg.Logger.Debugf("unable to determine home dir: %w", err)
 		return nil
