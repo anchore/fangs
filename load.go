@@ -9,10 +9,11 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/anchore/go-homedir"
 )
 
 func Load(cfg Config, cmd *cobra.Command, configurations ...any) error {

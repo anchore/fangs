@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/anchore/go-homedir"
 )
 
 type sub struct {
@@ -534,11 +535,8 @@ func Test_wdSubdirConfigYaml(t *testing.T) {
 }
 
 func Test_homeDir(t *testing.T) {
-	disableCache := homedir.DisableCache
-	homedir.DisableCache = true
-	t.Cleanup(func() {
-		homedir.DisableCache = disableCache
-	})
+	restoreCache(t)
+	homedir.SetCacheEnable(false)
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
@@ -558,11 +556,8 @@ func Test_xdgDirs(t *testing.T) {
 		xdg.Reload()
 	})
 
-	disableCache := homedir.DisableCache
-	homedir.DisableCache = true
-	t.Cleanup(func() {
-		homedir.DisableCache = disableCache
-	})
+	restoreCache(t)
+	homedir.SetCacheEnable(false)
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
@@ -586,11 +581,8 @@ func Test_xdgHomeDir(t *testing.T) {
 		xdg.Reload()
 	})
 
-	disableCache := homedir.DisableCache
-	homedir.DisableCache = true
-	t.Cleanup(func() {
-		homedir.DisableCache = disableCache
-	})
+	restoreCache(t)
+	homedir.SetCacheEnable(false)
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
@@ -1123,4 +1115,15 @@ var _ PostLoader = (*item)(nil)
 func (s *item) PostLoad() error {
 	s.loadedValue = s.V
 	return nil
+}
+
+// restoreCache ensures cache settings are restored after test
+func restoreCache(t testing.TB) {
+	t.Helper()
+	origEnabled := homedir.CacheEnabled()
+
+	t.Cleanup(func() {
+		homedir.SetCacheEnable(origEnabled)
+		homedir.Reset()
+	})
 }
