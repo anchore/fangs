@@ -18,17 +18,19 @@ import (
 )
 
 func Test_Summarize(t *testing.T) {
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 
 	cmd := &cobra.Command{}
-	root.AddCommand(cmd)
+	r.AddCommand(cmd)
 
 	type ty0 struct {
-		S0 summarize0 `mapstructure:",squash"`
-		S1 summarize1 `mapstructure:",squash"`
+		Ignore string     `yaml:"-" mapstructure:",squash"`
+		S0     summarize0 `mapstructure:",squash"`
+		S1     summarize1 `mapstructure:",squash"`
 	}
 
 	t0 := &ty0{
+		Ignore: "dont show up please",
 		S0: summarize0{
 			Name0: "name0 val",
 			Type0: "type0 val",
@@ -46,7 +48,7 @@ func Test_Summarize(t *testing.T) {
 		},
 	}
 
-	AddFlags(discard.New(), root.PersistentFlags(), &t0.S0)
+	AddFlags(discard.New(), r.PersistentFlags(), &t0.S0)
 	AddFlags(discard.New(), cmd.Flags(), &t0.S1)
 
 	cfg := NewConfig("app")
@@ -427,7 +429,7 @@ TopIntPtrSet: 42
 }
 
 func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 
 	appConfigPtr := &struct {
 		Public      `yaml:",inline" mapstructure:",squash"`
@@ -437,9 +439,9 @@ func Test_SummarizeWithEmbeddedPublicStruct(t *testing.T) {
 		} `yaml:"field" mapstructure:"field"`
 	}{}
 
-	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	AddFlags(discard.New(), r.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
+	s := SummarizeCommand(cfg, r, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -455,7 +457,7 @@ field:
 }
 
 func Test_SummarizeWithEmbeddedPublicStructPointer(t *testing.T) {
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 
 	appConfigPtr := &struct {
 		*Public     `yaml:",inline" mapstructure:",squash"`
@@ -465,9 +467,9 @@ func Test_SummarizeWithEmbeddedPublicStructPointer(t *testing.T) {
 		} `yaml:"field" mapstructure:"field"`
 	}{}
 
-	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	AddFlags(discard.New(), r.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
+	s := SummarizeCommand(cfg, r, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -483,7 +485,7 @@ field:
 }
 
 func Test_SummarizeWithEmbeddedPrivateStruct(t *testing.T) {
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 
 	appConfigPtr := &struct {
 		private     `yaml:",inline" mapstructure:",squash"`
@@ -493,9 +495,9 @@ func Test_SummarizeWithEmbeddedPrivateStruct(t *testing.T) {
 		} `yaml:"field" mapstructure:"field"`
 	}{}
 
-	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	AddFlags(discard.New(), r.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
+	s := SummarizeCommand(cfg, r, nil, appConfigPtr)
 	expected := `# (env: APP_VALUE)
 value: false
 
@@ -512,7 +514,7 @@ field:
 
 func Test_SummarizeWithEmbeddedPrivateStructPointer(t *testing.T) {
 	// NOTE: this case is _DIFFERENT_ than the rest -- embedded private struct pointers are not supported
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 
 	appConfigPtr := &struct {
 		Something   bool `yaml:"something" mapstructure:"something"`
@@ -523,9 +525,9 @@ func Test_SummarizeWithEmbeddedPrivateStructPointer(t *testing.T) {
 		} `yaml:"field" mapstructure:"field"`
 	}{}
 
-	AddFlags(discard.New(), root.Flags(), appConfigPtr)
+	AddFlags(discard.New(), r.Flags(), appConfigPtr)
 	cfg := NewConfig("app")
-	s := SummarizeCommand(cfg, root, nil, appConfigPtr)
+	s := SummarizeCommand(cfg, r, nil, appConfigPtr)
 	expected := `# (env: APP_SOMETHING)
 something: false
 
@@ -542,7 +544,7 @@ func Test_SummarizeFiltering(t *testing.T) {
 		FilterMe string `description:"field named FilterMe"`
 	}
 
-	root := &cobra.Command{}
+	r := &cobra.Command{}
 	cfg := NewConfig("app")
 	val := FilterMe{
 		FilterMe: "FilterMe",
@@ -550,7 +552,7 @@ func Test_SummarizeFiltering(t *testing.T) {
 	filter := func(_ string) string {
 		return "FILTERED"
 	}
-	summary := SummarizeCommand(cfg, root, filter, val)
+	summary := SummarizeCommand(cfg, r, filter, val)
 	require.Equal(t, "# field named FilterMe (env: APP_FILTERME)\nFilterMe: 'FILTERED'\n\n", summary)
 }
 
