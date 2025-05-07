@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/adrg/xdg v0.5.3
 	github.com/anchore/go-homedir v0.0.0-20250319154043-c29668562e4d
 	github.com/anchore/go-logger v0.0.0-20250318195838-07ae343dd722
