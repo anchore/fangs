@@ -729,26 +729,25 @@ func Test_EmbeddedPrivateStruct(t *testing.T) {
 }
 
 func Test_EmbeddedPrivateStructPointer(t *testing.T) {
-	// Note that, unlike Test_EmbeddedPublicStructPointer above,
-	// in this test, *private is not exported and cannot be set or addressed.
-	// This is a language limitation. See https://go-review.googlesource.com/c/go/+/53643
-	// and https://github.com/golang/go/issues/21357
-	val := &struct {
-		*private    `yaml:",inline" mapstructure:",squash"`
-		PublicField struct {
-			*private `yaml:",inline" mapstructure:",squash"`
-		} `yaml:"field" mapstructure:"field"`
-	}{}
+	require.Panics(t, func() {
+		// Note that, unlike Test_EmbeddedPublicStructPointer above,
+		// in this test, *private is not exported and cannot be set or addressed.
+		// This is a language limitation. See https://go-review.googlesource.com/c/go/+/53643
+		// and https://github.com/golang/go/issues/21357
+		val := &struct {
+			*private    `yaml:",inline" mapstructure:",squash"`
+			PublicField struct {
+				*private `yaml:",inline" mapstructure:",squash"`
+			} `yaml:"field" mapstructure:"field"`
+		}{}
 
-	cfg := NewConfig("app")
-	t.Setenv("APP_VALUE", "true")
-	t.Setenv("APP_FIELD_VALUE", "true")
+		cfg := NewConfig("app")
+		t.Setenv("APP_VALUE", "true")
+		t.Setenv("APP_FIELD_VALUE", "true")
 
-	cmd := &cobra.Command{}
-	err := Load(cfg, cmd, val)
-
-	// https://github.com/mitchellh/mapstructure/blob/bf980b35cac4dfd34e05254ee5aba086504c3f96/mapstructure.go#L1338
-	assert.ErrorContains(t, err, "unsupported type for squash")
+		cmd := &cobra.Command{}
+		_ = Load(cfg, cmd, val)
+	})
 }
 
 func Test_configVarSetToAllFiles(t *testing.T) {
