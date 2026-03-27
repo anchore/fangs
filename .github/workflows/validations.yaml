@@ -13,7 +13,6 @@ permissions:
 jobs:
 
   Static-Analysis:
-    # Note: changing this job name requires making the same update in the .github/workflows/release.yaml pipeline
     name: "Static analysis"
     runs-on: ubuntu-24.04
     steps:
@@ -24,7 +23,6 @@ jobs:
         run: make static-analysis
 
   Unit-Test:
-    # Note: changing this job name requires making the same update in the .github/workflows/release.yaml pipeline
     name: "Unit tests"
     runs-on: ubuntu-24.04
     steps:
