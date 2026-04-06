@@ -140,8 +140,7 @@ func summarizeField(cfg Config, descriptions DescriptionProvider, s *section, f 
 }
 
 // printVal prints a value in YAML format
-// nolint:gocognit
-func printVal(cfg Config, filter ValueFilterFunc, value reflect.Value, indent string) string { //nolint:funlen
+func printVal(cfg Config, filter ValueFilterFunc, value reflect.Value, indent string) string {
 	buf := bytes.Buffer{}
 
 	v, t := base(value)
