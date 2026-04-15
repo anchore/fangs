@@ -1,14 +1,12 @@
 module github.com/anchore/fangs
 
-go 1.23.0
-
-toolchain go1.24.1
+go 1.26.2
 
 require (
 	dario.cat/mergo v1.0.2
 	github.com/adrg/xdg v0.5.3
-	github.com/anchore/go-homedir v0.0.0-20250319154043-c29668562e4d
-	github.com/anchore/go-logger v0.0.0-20250318195838-07ae343dd722
+	github.com/anchore/go-homedir v0.1.0
+	github.com/anchore/go-logger v0.1.1-0.20260414131315-beb30ae87c9e
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/go-cmp v0.7.0
 	github.com/spf13/cobra v1.10.2
@@ -29,7 +27,7 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
