@@ -496,7 +496,7 @@ func upperFirst(p string) string {
 }
 
 func isPtr(typ reflect.Type) bool {
-	return typ.Kind() == reflect.Ptr
+	return typ.Kind() == reflect.Pointer
 }
 
 func isStruct(typ reflect.Type) bool {
