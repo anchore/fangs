@@ -479,7 +479,7 @@ func getFlagRef(flag *pflag.Flag) uintptr {
 		if isStruct(vt) {
 			if _, ok := vt.FieldByName("value"); ok {
 				vf = vf.FieldByName("value")
-				if vf.IsValid() {
+				if vf.IsValid() && isPtr(vf.Type()) {
 					v = vf
 				}
 			}

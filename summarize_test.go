@@ -2,6 +2,7 @@ package fangs
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -82,6 +83,43 @@ s2:
   Field2: false
 
 `, s)
+}
+
+func TestSummarizeCommandWithValueBackedCustomFlag(t *testing.T) {
+	type config struct {
+		Name string
+	}
+
+	values := &config{}
+	root := &cobra.Command{}
+	cmd := &cobra.Command{}
+	root.AddCommand(cmd)
+	cmd.Flags().Var(&valueBackedBool{}, "unwrap-scalar", "unwrap scalar values")
+
+	summary := SummarizeCommand(NewConfig("app"), cmd, nil, values)
+
+	require.Contains(t, summary, "Name: ''")
+}
+
+type valueBackedBool struct {
+	value bool
+}
+
+func (v *valueBackedBool) Set(value string) error {
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return err
+	}
+	v.value = parsed
+	return nil
+}
+
+func (v *valueBackedBool) String() string {
+	return strconv.FormatBool(v.value)
+}
+
+func (v *valueBackedBool) Type() string {
+	return "bool"
 }
 
 type summarize0 struct {
