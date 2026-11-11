@@ -15,6 +15,7 @@ type FieldDescriber interface {
 // FieldDescriptionSet accepts field descriptions
 type FieldDescriptionSet interface {
 	Add(ptr any, description string)
+	//Deprecated(ptr any, alternative string)
 }
 
 // FieldDescriptionSetProvider implements both DescriptionProvider and FieldDescriptionSet
@@ -53,6 +54,17 @@ func (d *directDescriber) Add(ptr any, description string) {
 		Usage: description,
 	}
 }
+
+//func (d *directDescriber) Deprecated(ptr any, alternative string) {
+//	v := reflect.ValueOf(ptr)
+//	if !isPtr(v.Type()) {
+//		panic(fmt.Sprintf("Add() requires a pointer, but got: %#v", ptr))
+//	}
+//	p := v.Pointer()
+//	d.flagRefs[p] = &pflag.Flag{
+//		Usage: description,
+//	}
+//}
 
 func (d *directDescriber) GetDescription(v reflect.Value, _ reflect.StructField) string {
 	if v.CanAddr() {
